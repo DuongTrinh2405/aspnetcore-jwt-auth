@@ -55,7 +55,7 @@ namespace Lab1.Controllers
 		[Authorize(Roles = "Admin")]
 		public async Task<IActionResult>DeleteUser(string Name)
 		{
-		 ApplicationUser user=	await userManager.FindByNameAsync(Name);
+		 ApplicationUser? user=	await userManager.FindByNameAsync(Name);
 			if(user!=null)
 			{
 				IdentityResult result = await userManager.DeleteAsync(user);
@@ -74,7 +74,7 @@ namespace Lab1.Controllers
 		[Authorize(Roles = "Admin")]
 		public async Task<IActionResult>UpdateUser(string userName, RegisterUserDTO userDTO)
 		{
-			ApplicationUser user=await userManager.FindByNameAsync(userName);
+			ApplicationUser? user=await userManager.FindByNameAsync(userName);
 			if (user != null)
 			{
 				user.UserName = userDTO.UserName;
