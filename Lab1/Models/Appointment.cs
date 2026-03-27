@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
+using Lab1.Enums;
 
 namespace Lab1.Models
 {
@@ -22,7 +22,7 @@ namespace Lab1.Models
         public DateTime DateTime { get; set; }
 
         [Required]
-        public string Status { get; set; } = "Scheduled"; // Scheduled / Completed / Cancelled / NoShow
+        public AppointmentStatus Status { get; set; } = AppointmentStatus.Scheduled;
 
         public string? Notes { get; set; }
 

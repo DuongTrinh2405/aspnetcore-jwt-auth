@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Lab1.Enums;
 
 namespace Lab1.Models
 {
@@ -13,8 +14,9 @@ namespace Lab1.Models
         [Required]
         public int PropertyId { get; set; }
 
+        // ✅ Dùng enum thay vì string
         [Required]
-        public string Type { get; set; } = "Interested"; // Interested / Viewing / Offer / Sold
+        public InteractionType Type { get; set; } = InteractionType.Call;
 
         public string? Notes { get; set; }
 
@@ -24,8 +26,13 @@ namespace Lab1.Models
         public int? EmployeeId { get; set; }
 
         // Navigation properties
+        [ForeignKey(nameof(CustomerId))]
         public Customer? Customer { get; set; }
+
+        [ForeignKey(nameof(PropertyId))]
         public Property? Property { get; set; }
+
+        [ForeignKey(nameof(EmployeeId))]
         public Employee? Employee { get; set; }
     }
 }

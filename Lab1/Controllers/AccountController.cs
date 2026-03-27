@@ -1,9 +1,9 @@
 using Lab1.DTO;
 using Lab1.Models;
 using Lab1.Services.Interfaces;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Lab1.Controllers
 {
@@ -14,30 +14,56 @@ namespace Lab1.Controllers
 		private readonly UserManager<ApplicationUser> userManager;
 		private readonly IJwtTokenService jwtTokenService;
 		private readonly ILogger<AccountController> logger;
-		public AccountController(UserManager<ApplicationUser> _userManager, IJwtTokenService jwtTokenService, ILogger<AccountController> logger)
+		private readonly Context _context;
+
+		public AccountController(
+			UserManager<ApplicationUser> _userManager,
+			IJwtTokenService jwtTokenService,
+			ILogger<AccountController> logger,
+			Context context)
 		{
 			userManager = _userManager;
 			this.jwtTokenService = jwtTokenService;
 			this.logger = logger;
+			_context = context;
 		}
+
 		[HttpPost("register")]
-		public async Task< IActionResult> Registe(RegisterUserDTO userDTO)
+		public async Task<IActionResult> Registe(RegisterUserDTO userDTO)
 		{
-			if(ModelState.IsValid)
+			if (ModelState.IsValid)
 			{
 				ApplicationUser AppUser = new ApplicationUser()
 				{
 					UserName = userDTO.UserName,
 					Email = userDTO.Email
 				};
-			 IdentityResult Result=	await userManager.CreateAsync(AppUser,userDTO.Password);
+
+				IdentityResult Result = await userManager.CreateAsync(AppUser, userDTO.Password);
+
 				if (Result.Succeeded)
 				{
-					//this when you make to add registered user as an admin
-					await userManager.AddToRoleAsync(AppUser, "Admin");
-					return Ok("Account Created");
+					// ✅ FIX: không auto admin
+					await userManager.AddToRoleAsync(AppUser, "User");
+
+					// ✅ FIX: tạo Employee
+					var employee = new Employee
+					{
+						UserId = AppUser.Id
+					};
+
+					_context.Employees.Add(employee);
+					await _context.SaveChangesAsync();
+
+					return Ok(new
+					{
+						success = true,
+						message = "Account Created"
+					});
 				}
+
 				var errors = Result.Errors.Select(e => new { code = e.Code, message = e.Description });
+
 				return BuildErrorResponse(StatusCodes.Status400BadRequest, "REGISTER_FAILED", "Register failed.", errors);
 			}
 
@@ -51,38 +77,49 @@ namespace Lab1.Controllers
 		}
 
 		[HttpPost("login")]
-		public async Task< IActionResult> Login(LoginUserDTO userDTO)
+		public async Task<IActionResult> Login(LoginUserDTO userDTO)
 		{
-			if(ModelState.IsValid)
+			if (ModelState.IsValid)
 			{
-				ApplicationUser? UserFromDB= await userManager.FindByNameAsync(userDTO.UserName);
+				ApplicationUser? UserFromDB = await userManager.FindByNameAsync(userDTO.UserName);
+
 				if (UserFromDB != null)
 				{
-					bool found= await userManager.CheckPasswordAsync(UserFromDB,userDTO.Password);
+					bool found = await userManager.CheckPasswordAsync(UserFromDB, userDTO.Password);
+
 					if (found)
 					{
 						try
 						{
 							var roles = await userManager.GetRolesAsync(UserFromDB);
 							var token = jwtTokenService.GenerateToken(UserFromDB, roles);
+
 							return Ok(new
 							{
+								success = true,
 								token,
-								expired = DateTime.UtcNow.AddHours(1)
+								expired = DateTime.UtcNow.AddHours(1),
+								user = new
+								{
+									id = UserFromDB.Id,
+									username = UserFromDB.UserName,
+									roles
+								}
 							});
 						}
 						catch (InvalidOperationException ex)
 						{
-							logger.LogError(ex, "JWT configuration is invalid while logging in user {UserName}.", userDTO.UserName);
+							logger.LogError(ex, "JWT config error {UserName}", userDTO.UserName);
 							return BuildErrorResponse(StatusCodes.Status500InternalServerError, "JWT_CONFIG_MISSING", ex.Message);
 						}
 						catch (Exception ex)
 						{
-							logger.LogError(ex, "Unexpected error while generating token for user {UserName}.", userDTO.UserName);
+							logger.LogError(ex, "Login error {UserName}", userDTO.UserName);
 							return BuildErrorResponse(StatusCodes.Status500InternalServerError, "AUTH_INTERNAL_ERROR", "Unable to process login request.");
 						}
 					}
 				}
+
 				return BuildErrorResponse(StatusCodes.Status401Unauthorized, "INVALID_CREDENTIALS", "Invalid username or password.");
 			}
 
@@ -108,6 +145,5 @@ namespace Lab1.Controllers
 				}
 			});
 		}
-
 	}
 }

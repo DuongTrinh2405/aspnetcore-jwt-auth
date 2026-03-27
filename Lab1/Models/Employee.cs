@@ -1,22 +1,32 @@
 using System.ComponentModel.DataAnnotations;
+using Lab1.Enums;
 
-public class Employee
+namespace Lab1.Models
 {
-    public int Id { get; set; }
+    public class Employee
+    {
+        public int Id { get; set; }
 
-    [Required]
-    public string? Name { get; set; }
+        [Required]
+        public string Name { get; set; } = string.Empty;
 
-    public string? Email { get; set; }
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
 
-    public string? Phone { get; set; }
+        [Phone]
+        public string? Phone { get; set; }
 
-    public string? Role { get; set; } // Admin / Staff
+        // ✅ Dùng enum thay vì string
+        [Required]
+        public EmployeeRole Role { get; set; }
 
-    public string? Status { get; set; } // Active / Inactive
+        [Required]
+        public EmployeeStatus Status { get; set; }
 
-    public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
-    // 🔥 Quan trọng cho phase sau
-    public string? UserId { get; set; } // link với AspNetUsers
+        // 🔥 chỉ backend set, không cho client đụng
+        public string? UserId { get; set; }
+    }
 }

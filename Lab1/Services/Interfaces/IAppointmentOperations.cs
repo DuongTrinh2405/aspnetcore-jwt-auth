@@ -4,13 +4,18 @@ namespace Lab1.Services.Interfaces
 {
     public interface IAppointmentOperations
     {
-        Task<IEnumerable<Appointment>> GetAllAsync();
-        Task<Appointment?> GetByIdAsync(int id);
-        Task<IEnumerable<Appointment>> GetByCustomerIdAsync(int customerId);
-        Task<IEnumerable<Appointment>> GetByEmployeeIdAsync(int employeeId);
-        Task<IEnumerable<Appointment>> GetByPropertyIdAsync(int propertyId);
-        Task<Appointment> CreateAsync(Appointment appointment);
-        Task<bool> UpdateAsync(int id, Appointment appointment);
-        Task<bool> DeleteAsync(int id);
+        Task<IEnumerable<Appointment>> GetAllAsync(string? userId, string? role);
+
+        Task<Appointment?> GetByIdAsync(int id, string? userId, string? role);
+
+        Task<IEnumerable<Appointment>> GetByCustomerIdAsync(int customerId, string? userId, string? role);
+
+        Task<IEnumerable<Appointment>> GetByPropertyIdAsync(int propertyId, string? userId, string? role);
+
+        Task<Appointment> CreateAsync(Appointment appointment, string userId);
+
+        Task<bool> UpdateAsync(int id, Appointment appointment, string userId);
+
+        Task<bool> DeleteAsync(int id, string userId, string role);
     }
 }

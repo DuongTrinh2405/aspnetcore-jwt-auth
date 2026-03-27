@@ -3,6 +3,7 @@ using Lab1.Models;
 using Lab1.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Lab1.Controllers
 {
@@ -18,41 +19,80 @@ namespace Lab1.Controllers
             _service = service;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAll()
+        // 🔥 helper lấy user info
+        private (string userId, string role) GetUserInfo()
         {
-            var data = await _service.GetAllAsync();
-            return Ok(data.Select(MapToResponseDto));
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+            var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
+            return (userId, role);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll(int page = 1, int pageSize = 10)
+        {
+            var (userId, role) = GetUserInfo();
+
+            var data = await _service.GetAllAsync(userId, role, page, pageSize);
+
+            return Ok(new
+            {
+                success = true,
+                data = data.Select(MapToResponseDto)
+            });
         }
 
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var interaction = await _service.GetByIdAsync(id);
+            var (userId, role) = GetUserInfo();
 
-            if (interaction is null) return NotFound();
+            var interaction = await _service.GetByIdAsync(id, userId, role);
 
-            return Ok(MapToResponseDto(interaction));
+            if (interaction is null)
+                return NotFound(new { success = false });
+
+            return Ok(new
+            {
+                success = true,
+                data = MapToResponseDto(interaction)
+            });
         }
 
         [HttpGet("customer/{customerId}")]
-        public async Task<IActionResult> GetByCustomer(int customerId)
+        public async Task<IActionResult> GetByCustomer(int customerId, int page = 1, int pageSize = 10)
         {
-            var interactions = await _service.GetByCustomerIdAsync(customerId);
-            return Ok(interactions.Select(MapToResponseDto));
+            var (userId, role) = GetUserInfo();
+
+            var data = await _service.GetByCustomerIdAsync(customerId, userId, role, page, pageSize);
+
+            return Ok(new
+            {
+                success = true,
+                data = data.Select(MapToResponseDto)
+            });
         }
 
         [HttpGet("property/{propertyId}")]
-        public async Task<IActionResult> GetByProperty(int propertyId)
+        public async Task<IActionResult> GetByProperty(int propertyId, int page = 1, int pageSize = 10)
         {
-            var interactions = await _service.GetByPropertyIdAsync(propertyId);
-            return Ok(interactions.Select(MapToResponseDto));
+            var (userId, role) = GetUserInfo();
+
+            var data = await _service.GetByPropertyIdAsync(propertyId, userId, role, page, pageSize);
+
+            return Ok(new
+            {
+                success = true,
+                data = data.Select(MapToResponseDto)
+            });
         }
 
         [HttpPost]
         public async Task<IActionResult> Create(CreateInteractionDto dto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var (userId, _) = GetUserInfo();
 
             var interaction = new Interaction
             {
@@ -60,42 +100,52 @@ namespace Lab1.Controllers
                 PropertyId = dto.PropertyId,
                 Type = dto.Type,
                 Notes = dto.Notes,
-                Date = dto.Date,
-                EmployeeId = dto.EmployeeId
+                Date = dto.Date
             };
 
-            var result = await _service.CreateAsync(interaction);
-            return Ok(MapToResponseDto(result));
+            var result = await _service.CreateAsync(interaction, userId);
+
+            return Ok(new
+            {
+                success = true,
+                data = MapToResponseDto(result)
+            });
         }
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, UpdateInteractionDto dto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var (userId, _) = GetUserInfo();
 
             var interaction = new Interaction
             {
-                CustomerId = dto.CustomerId,
-                PropertyId = dto.PropertyId,
                 Type = dto.Type,
                 Notes = dto.Notes,
-                Date = dto.Date,
-                EmployeeId = dto.EmployeeId
+                Date = dto.Date
             };
 
-            var updated = await _service.UpdateAsync(id, interaction);
-            if (!updated) return NotFound();
+            var updated = await _service.UpdateAsync(id, interaction, userId);
 
-            return Ok("Updated");
+            if (!updated)
+                return NotFound(new { success = false });
+
+            return Ok(new { success = true });
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var deleted = await _service.DeleteAsync(id);
-            if (!deleted) return NotFound();
+            var (userId, role) = GetUserInfo();
 
-            return Ok("Deleted");
+            var deleted = await _service.DeleteAsync(id, userId, role);
+
+            if (!deleted)
+                return NotFound(new { success = false });
+
+            return Ok(new { success = true });
         }
 
         private static InteractionResponseDto MapToResponseDto(Interaction interaction)

@@ -3,12 +3,13 @@ using Microsoft.AspNetCore.Mvc;
 using Lab1.Models;
 using Lab1.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace Lab1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize(Roles = "Admin")]
     public class EmployeesController : ControllerBase
     {
         private readonly IEmployeeOperations _employeeService;
@@ -22,7 +23,12 @@ namespace Lab1.Controllers
         public async Task<IActionResult> GetAll()
         {
             var result = await _employeeService.GetAllAsync();
-            return Ok(result.Select(MapToResponseDto));
+
+            return Ok(new
+            {
+                success = true,
+                data = result.Select(MapToResponseDto)
+            });
         }
 
         [HttpGet("{id}")]
@@ -31,9 +37,13 @@ namespace Lab1.Controllers
             var employee = await _employeeService.GetByIdAsync(id);
 
             if (employee is null)
-                return NotFound("Employee not found");
+                return NotFound(new { success = false, message = "Employee not found" });
 
-            return Ok(MapToResponseDto(employee));
+            return Ok(new
+            {
+                success = true,
+                data = MapToResponseDto(employee)
+            });
         }
 
         [HttpPost]
@@ -42,19 +52,37 @@ namespace Lab1.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var employee = new Employee
+            try
             {
-                Name = employeeDto.Name,
-                Email = employeeDto.Email,
-                Phone = employeeDto.Phone,
-                Role = employeeDto.Role,
-                Status = employeeDto.Status,
-                UserId = employeeDto.UserId
-            };
+                // ✅ Lấy UserId từ JWT (KHÔNG lấy từ client)
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            var created = await _employeeService.CreateAsync(employee);
+                var employee = new Employee
+                {
+                    Name = employeeDto.Name,
+                    Email = employeeDto.Email,
+                    Phone = employeeDto.Phone,
+                    Role = employeeDto.Role,
+                    Status = employeeDto.Status,
+                    UserId = userId
+                };
 
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, MapToResponseDto(created));
+                var created = await _employeeService.CreateAsync(employee);
+
+                return CreatedAtAction(nameof(GetById), new { id = created.Id }, new
+                {
+                    success = true,
+                    data = MapToResponseDto(created)
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
         }
 
         [HttpPut("{id}")]
@@ -63,33 +91,55 @@ namespace Lab1.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var employee = new Employee
+            try
             {
-                Name = employeeDto.Name,
-                Email = employeeDto.Email,
-                Phone = employeeDto.Phone,
-                Role = employeeDto.Role,
-                Status = employeeDto.Status,
-                UserId = employeeDto.UserId
-            };
+                var employee = new Employee
+                {
+                    Name = employeeDto.Name,
+                    Email = employeeDto.Email,
+                    Phone = employeeDto.Phone,
+                    Role = employeeDto.Role,
+                    Status = employeeDto.Status
+                    // ❌ KHÔNG update UserId
+                };
 
-            var success = await _employeeService.UpdateAsync(id, employee);
+                var success = await _employeeService.UpdateAsync(id, employee);
 
-            if (!success)
-                return NotFound("Employee not found");
+                if (!success)
+                    return NotFound(new { success = false });
 
-            return Ok("Updated successfully");
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var success = await _employeeService.DeleteAsync(id);
+            try
+            {
+                var success = await _employeeService.DeleteAsync(id);
 
-            if (!success)
-                return NotFound("Employee not found");
+                if (!success)
+                    return NotFound(new { success = false });
 
-            return Ok("Deleted successfully");
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
         }
 
         private static EmployeeResponseDto MapToResponseDto(Employee employee)
@@ -97,11 +147,11 @@ namespace Lab1.Controllers
             return new EmployeeResponseDto
             {
                 Id = employee.Id,
-                Name = employee.Name ?? string.Empty,
+                Name = employee.Name,
                 Email = employee.Email,
                 Phone = employee.Phone,
-                Role = employee.Role,
-                Status = employee.Status,
+                Role = employee.Role.ToString(),     // ✅ enum → string
+                Status = employee.Status.ToString(), // ✅ enum → string
                 CreatedDate = employee.CreatedDate,
                 UserId = employee.UserId
             };

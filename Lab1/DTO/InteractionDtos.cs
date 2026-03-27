@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Lab1.Enums;
 
 namespace Lab1.DTO
 {
@@ -6,36 +7,47 @@ namespace Lab1.DTO
     {
         [Required]
         public int CustomerId { get; set; }
+
         [Required]
         public int PropertyId { get; set; }
+
+        // ✅ dùng enum thay vì string
         [Required]
-        public string Type { get; set; } = "Interested";
+        public InteractionType Type { get; set; }
+
         public string? Notes { get; set; }
+
         public DateTime Date { get; set; } = DateTime.UtcNow;
-        public int? EmployeeId { get; set; }
     }
 
     public class UpdateInteractionDto
     {
+        // ❌ KHÔNG cho sửa CustomerId + PropertyId
+        // → bỏ luôn 2 field này
+
         [Required]
-        public int CustomerId { get; set; }
-        [Required]
-        public int PropertyId { get; set; }
-        [Required]
-        public string Type { get; set; } = "Interested";
+        public InteractionType Type { get; set; }
+
         public string? Notes { get; set; }
+
         public DateTime Date { get; set; } = DateTime.UtcNow;
-        public int? EmployeeId { get; set; }
     }
 
     public class InteractionResponseDto
     {
         public int Id { get; set; }
+
         public int CustomerId { get; set; }
+
         public int PropertyId { get; set; }
-        public string Type { get; set; } = string.Empty;
+
+        // ✅ trả enum (hoặc string nếu config JSON)
+        public InteractionType Type { get; set; }
+
         public string? Notes { get; set; }
+
         public DateTime Date { get; set; }
+
         public int? EmployeeId { get; set; }
     }
 }

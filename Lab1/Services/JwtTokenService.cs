@@ -26,10 +26,13 @@ namespace Lab1.Services
             if (string.IsNullOrWhiteSpace(_jwtOptions.ValidAudience))
                 throw new InvalidOperationException("JWT:ValidAudience is not configured.");
 
+            var now = DateTime.UtcNow;
+
             var claims = new List<Claim>
             {
                 new(ClaimTypes.Name, user.UserName ?? string.Empty),
                 new(ClaimTypes.NameIdentifier, user.Id),
+                new(ClaimTypes.Email, user.Email ?? string.Empty), // ✅ thêm
                 new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
@@ -41,10 +44,13 @@ namespace Lab1.Services
             var signKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.SecretKey));
             var signingCredentials = new SigningCredentials(signKey, SecurityAlgorithms.HmacSha256);
 
+            var expireMinutes = _jwtOptions.ExpireMinutes > 0 ? _jwtOptions.ExpireMinutes : 60;
+
             var token = new JwtSecurityToken(
                 issuer: _jwtOptions.ValidIssuer,
                 audience: _jwtOptions.ValidAudience,
-                expires: DateTime.UtcNow.AddHours(1),
+                notBefore: now, // ✅ thêm
+                expires: now.AddMinutes(expireMinutes), // ✅ dùng config
                 claims: claims,
                 signingCredentials: signingCredentials);
 

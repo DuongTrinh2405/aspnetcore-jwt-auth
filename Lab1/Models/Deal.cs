@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Lab1.Enums;
 
 namespace Lab1.Models
 {
@@ -8,16 +9,17 @@ namespace Lab1.Models
         public int Id { get; set; }
 
         [Required]
+        [MaxLength(255)]
         public string Title { get; set; } = string.Empty;
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
 
         [Required]
-        public string Stage { get; set; } = "Prospect"; // Prospect / Proposal / Negotiation / Won / Lost
+        public DealStage Stage { get; set; } = DealStage.Prospect;
 
         [Required]
-        public string Status { get; set; } = "Open"; // Open / Won / Lost / Cancelled
+        public DealStatus Status { get; set; } = DealStatus.Open;
 
         [Required]
         public int CustomerId { get; set; }
@@ -36,6 +38,7 @@ namespace Lab1.Models
 
         public DateTime? UpdatedDate { get; set; }
 
+        // Navigation
         public Customer? Customer { get; set; }
         public Property? Property { get; set; }
         public Employee? Employee { get; set; }

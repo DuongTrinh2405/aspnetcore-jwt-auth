@@ -1,24 +1,19 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Serialization;
 
 namespace Lab1.DTO
 {
     public class CreateAppointmentDTO
     {
-        [Required]
+        [Range(1, int.MaxValue)]
         public int CustomerId { get; set; }
 
-        [Required]
+        [Range(1, int.MaxValue)]
         public int PropertyId { get; set; }
 
         [Required]
-        public int EmployeeId { get; set; }
+        public DateTime AppointmentDate { get; set; }
 
-        public string? DateTimeString { get; set; }
-
-        [Required]
-        public string Status { get; set; } = string.Empty;
-
+        [StringLength(500)]
         public string? Notes { get; set; }
     }
 }

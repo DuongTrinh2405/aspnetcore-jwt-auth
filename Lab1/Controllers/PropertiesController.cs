@@ -1,8 +1,10 @@
 using Lab1.DTO;
 using Lab1.Models;
 using Lab1.Services.Interfaces;
+using Lab1.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Lab1.Controllers
 {
@@ -18,27 +20,79 @@ namespace Lab1.Controllers
             _service = service;
         }
 
+        // ✅ GET ALL
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll(
+            int page = 1,
+            int pageSize = 10,
+            PropertyType? type = null,
+            PropertyStatus? status = null,
+            decimal? minPrice = null,
+            decimal? maxPrice = null)
         {
-            var data = await _service.GetAllAsync();
-            return Ok(data.Select(MapToResponseDto));
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            // 🔥 FIX QUAN TRỌNG
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
+                return Unauthorized(new { success = false, message = "Invalid token" });
+
+            var (data, total) = await _service.GetAllAsync(
+                userId,
+                role,
+                page,
+                pageSize,
+                type,
+                status,
+                minPrice,
+                maxPrice
+            );
+
+            return Ok(new
+            {
+                success = true,
+                total,
+                page,
+                pageSize,
+                data = data.Select(MapToResponseDto)
+            });
         }
 
+        // ✅ GET BY ID
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            var property = await _service.GetByIdAsync(id);
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            if (property is null) return NotFound();
+            // 🔥 FIX
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
+                return Unauthorized(new { success = false });
 
-            return Ok(MapToResponseDto(property));
+            var property = await _service.GetByIdAsync(id, userId, role);
+
+            if (property is null)
+                return NotFound(new { success = false });
+
+            return Ok(new
+            {
+                success = true,
+                data = MapToResponseDto(property)
+            });
         }
 
+        // ✅ CREATE
         [HttpPost]
         public async Task<IActionResult> Create(CreatePropertyDto dto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // 🔥 FIX
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { success = false });
 
             var property = new Property
             {
@@ -49,19 +103,30 @@ namespace Lab1.Controllers
                 Address = dto.Address,
                 Type = dto.Type,
                 Status = dto.Status,
-                IsSold = dto.IsSold,
-                EmployeeId = dto.EmployeeId,
-                CustomerId = dto.CustomerId
+                IsSold = dto.IsSold
             };
 
-            var result = await _service.CreateAsync(property);
-            return Ok(MapToResponseDto(result));
+            var result = await _service.CreateAsync(property, userId);
+
+            return CreatedAtAction(nameof(Get), new { id = result.Id }, new
+            {
+                success = true,
+                data = MapToResponseDto(result)
+            });
         }
 
+        // ✅ UPDATE
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, UpdatePropertyDto dto)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // 🔥 FIX
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { success = false });
 
             var property = new Property
             {
@@ -72,24 +137,48 @@ namespace Lab1.Controllers
                 Address = dto.Address,
                 Type = dto.Type,
                 Status = dto.Status,
-                IsSold = dto.IsSold,
-                EmployeeId = dto.EmployeeId,
-                CustomerId = dto.CustomerId
+                IsSold = dto.IsSold
             };
 
-            var updated = await _service.UpdateAsync(id, property);
-            if (!updated) return NotFound();
+            try
+            {
+                var updated = await _service.UpdateAsync(id, property, userId);
 
-            return Ok("Updated");
+                if (!updated)
+                    return NotFound(new { success = false });
+
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
 
+        // ✅ DELETE
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var deleted = await _service.DeleteAsync(id);
-            if (!deleted) return NotFound();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            return Ok("Deleted");
+            // 🔥 FIX
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
+                return Unauthorized(new { success = false });
+
+            try
+            {
+                var deleted = await _service.DeleteAsync(id, userId, role);
+
+                if (!deleted)
+                    return NotFound(new { success = false });
+
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
         }
 
         private static PropertyResponseDto MapToResponseDto(Property property)

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Lab1.Enums;
 
 namespace Lab1.Models
 {
@@ -8,32 +9,40 @@ namespace Lab1.Models
         public int Id { get; set; }
 
         [Required]
+        [MaxLength(200)]
         public string Title { get; set; } = string.Empty;
 
+        [MaxLength(1000)]
         public string Description { get; set; } = string.Empty;
 
         [Required]
+        [Range(0, double.MaxValue)]
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
 
         [Required]
+        [Range(0, double.MaxValue)]
         [Column(TypeName = "decimal(10,2)")]
-        public decimal Area { get; set; } // Diện tích (m²)
+        public decimal Area { get; set; }
 
         [Required]
+        [MaxLength(300)]
         public string Address { get; set; } = string.Empty;
 
-        public string Type { get; set; } = "Apartment"; // Apartment / House / Land / Commercial
+        // ✅ FIX: dùng enum
+        [Required]
+        public PropertyType Type { get; set; } = PropertyType.Apartment;
 
-        public string Status { get; set; } = "Available"; // Available / Sold / Pending
+        [Required]
+        public PropertyStatus Status { get; set; } = PropertyStatus.Available;
 
         public bool IsSold { get; set; } = false;
 
-        // 🔥 Liên kết với Employee (người quản lý property)
+        // 🔥 Employee quản lý
         public int? EmployeeId { get; set; }
         public Employee? Employee { get; set; }
 
-        // 🔥 Liên kết với Customer (khách hàng quan tâm/đã mua)
+        // 🔥 Customer (nếu có)
         public int? CustomerId { get; set; }
         public Customer? Customer { get; set; }
 

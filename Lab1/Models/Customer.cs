@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using Lab1.Enums;
 
 namespace Lab1.Models
 {
@@ -16,11 +16,9 @@ namespace Lab1.Models
 
         public string Address { get; set; } = string.Empty;
 
-        // 🔥 CRM CORE
-        public string Status { get; set; } = "New";
-        // New / Contacted / Qualified / Deal / Lost
+        // 🔥 FIX: dùng enum
+        public CustomerStatus Status { get; set; } = CustomerStatus.New;
 
-        // 🔥 Gắn với Employee (Sales)
         public int? EmployeeId { get; set; }
 
         public Employee? Employee { get; set; }

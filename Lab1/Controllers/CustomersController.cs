@@ -3,6 +3,7 @@ using Lab1.Models;
 using Lab1.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -16,72 +17,95 @@ public class CustomersController : ControllerBase
         _service = service;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> GetAll()
+    private (string? userId, string? role) GetUser()
     {
-        var data = await _service.GetAllAsync();
-        return Ok(data.Select(MapToResponseDto));
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var role = User.FindFirst(ClaimTypes.Role)?.Value;
+        return (userId, role);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll(int page = 1, int pageSize = 10)
+    {
+        var (userId, role) = GetUser();
+
+        var data = await _service.GetAllAsync(userId!, role!);
+
+        var paged = data
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(MapToResponseDto);
+
+        return Ok(new
+        {
+            success = true,
+            data = paged
+        });
     }
 
     [HttpGet("{id}")]
     public async Task<IActionResult> Get(int id)
     {
-        var customer = await _service.GetByIdAsync(id);
+        var (userId, role) = GetUser();
 
-        if (customer is null) return NotFound(); // ✅ FIX
+        var customer = await _service.GetByIdAsync(id, userId!, role!);
 
-        return Ok(MapToResponseDto(customer));
+        if (customer is null)
+            return NotFound(new { success = false });
+
+        return Ok(new
+        {
+            success = true,
+            data = MapToResponseDto(customer)
+        });
     }
 
     [HttpPost]
     public async Task<IActionResult> Create(CreateCustomerDto dto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        var customer = new Customer
+        var (userId, _) = GetUser();
+
+        // 🔥 FIX: gọi đúng service
+        var result = await _service.CreateAsync(dto, userId!);
+
+        return Ok(new
         {
-            Name = dto.Name,
-            Phone = dto.Phone,
-            Email = dto.Email,
-            Address = dto.Address,
-            Status = dto.Status,
-            EmployeeId = dto.EmployeeId,
-            LastContactDate = dto.LastContactDate
-        };
-
-        var result = await _service.CreateAsync(customer);
-        return Ok(MapToResponseDto(result));
+            success = true,
+            data = MapToResponseDto(result)
+        });
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, UpdateCustomerDto dto)
     {
-        if (!ModelState.IsValid) return BadRequest(ModelState);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        var customer = new Customer
-        {
-            Name = dto.Name,
-            Phone = dto.Phone,
-            Email = dto.Email,
-            Address = dto.Address,
-            Status = dto.Status,
-            EmployeeId = dto.EmployeeId,
-            LastContactDate = dto.LastContactDate
-        };
+        var (userId, role) = GetUser();
 
-        var updated = await _service.UpdateAsync(id, customer);
-        if (!updated) return NotFound();
+        // 🔥 FIX: gọi đúng service
+        var updated = await _service.UpdateAsync(id, dto, userId!, role!);
 
-        return Ok("Updated");
+        if (!updated)
+            return NotFound(new { success = false });
+
+        return Ok(new { success = true });
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var deleted = await _service.DeleteAsync(id);
-        if (!deleted) return NotFound();
+        var (userId, role) = GetUser();
 
-        return Ok("Deleted");
+        var deleted = await _service.DeleteAsync(id, userId!, role!);
+
+        if (!deleted)
+            return NotFound(new { success = false });
+
+        return Ok(new { success = true });
     }
 
     private static CustomerResponseDto MapToResponseDto(Customer customer)
@@ -93,7 +117,7 @@ public class CustomersController : ControllerBase
             Phone = customer.Phone,
             Email = customer.Email,
             Address = customer.Address,
-            Status = customer.Status,
+            Status = customer.Status, // enum OK
             EmployeeId = customer.EmployeeId,
             CreatedDate = customer.CreatedDate,
             LastContactDate = customer.LastContactDate
