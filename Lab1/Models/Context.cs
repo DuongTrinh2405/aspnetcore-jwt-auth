@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lab1.Models
@@ -14,6 +14,7 @@ namespace Lab1.Models
         public DbSet<Property> Properties { get; set; }
         public DbSet<Interaction> Interactions { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
+        public DbSet<Deal> Deals { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -72,6 +73,24 @@ namespace Lab1.Models
                 .WithMany()
                 .HasForeignKey(a => a.EmployeeId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Deal>()
+                .HasOne(d => d.Customer)
+                .WithMany()
+                .HasForeignKey(d => d.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Deal>()
+                .HasOne(d => d.Property)
+                .WithMany()
+                .HasForeignKey(d => d.PropertyId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<Deal>()
+                .HasOne(d => d.Employee)
+                .WithMany()
+                .HasForeignKey(d => d.EmployeeId)
+                .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }

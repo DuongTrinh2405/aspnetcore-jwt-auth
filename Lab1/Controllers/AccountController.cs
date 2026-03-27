@@ -1,12 +1,9 @@
-﻿using Lab1.DTO;
+using Lab1.DTO;
 using Lab1.Models;
+using Lab1.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
 
 namespace Lab1.Controllers
 {
@@ -15,11 +12,13 @@ namespace Lab1.Controllers
 	public class AccountController : ControllerBase
 	{
 		private readonly UserManager<ApplicationUser> userManager;
-		private readonly IConfiguration config;
-		public AccountController(UserManager<ApplicationUser> _userManager, IConfiguration config)
+		private readonly IJwtTokenService jwtTokenService;
+		private readonly ILogger<AccountController> logger;
+		public AccountController(UserManager<ApplicationUser> _userManager, IJwtTokenService jwtTokenService, ILogger<AccountController> logger)
 		{
-		userManager = _userManager;
-	    this.config = config;
+			userManager = _userManager;
+			this.jwtTokenService = jwtTokenService;
+			this.logger = logger;
 		}
 		[HttpPost("register")]
 		public async Task< IActionResult> Registe(RegisterUserDTO userDTO)
@@ -29,8 +28,7 @@ namespace Lab1.Controllers
 				ApplicationUser AppUser = new ApplicationUser()
 				{
 					UserName = userDTO.UserName,
-					Email = userDTO.Email,
-					PasswordHash = userDTO.Password,
+					Email = userDTO.Email
 				};
 			 IdentityResult Result=	await userManager.CreateAsync(AppUser,userDTO.Password);
 				if (Result.Succeeded)
@@ -39,9 +37,17 @@ namespace Lab1.Controllers
 					await userManager.AddToRoleAsync(AppUser, "Admin");
 					return Ok("Account Created");
 				}
-				return BadRequest(Result.Errors);
+				var errors = Result.Errors.Select(e => new { code = e.Code, message = e.Description });
+				return BuildErrorResponse(StatusCodes.Status400BadRequest, "REGISTER_FAILED", "Register failed.", errors);
 			}
-			return BadRequest(ModelState);
+
+			var modelErrors = ModelState
+				.Where(kvp => kvp.Value?.Errors.Count > 0)
+				.ToDictionary(
+					kvp => kvp.Key,
+					kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray());
+
+			return BuildErrorResponse(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "Invalid request payload.", modelErrors);
 		}
 
 		[HttpPost("login")]
@@ -55,40 +61,52 @@ namespace Lab1.Controllers
 					bool found= await userManager.CheckPasswordAsync(UserFromDB,userDTO.Password);
 					if (found)
 					{
-						//Create Token
-						List<Claim> myclaims = new List<Claim>();
-						myclaims.Add(new Claim(ClaimTypes.Name,UserFromDB.UserName));
-						myclaims.Add(new Claim(ClaimTypes.NameIdentifier, UserFromDB.Id));
-						myclaims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
-
-						var roles=await userManager.GetRolesAsync(UserFromDB);
-						foreach (var role in roles)
+						try
 						{
-							myclaims.Add(new Claim(ClaimTypes.Role, role));
+							var roles = await userManager.GetRolesAsync(UserFromDB);
+							var token = jwtTokenService.GenerateToken(UserFromDB, roles);
+							return Ok(new
+							{
+								token,
+								expired = DateTime.UtcNow.AddHours(1)
+							});
 						}
-
-						var SignKey = new SymmetricSecurityKey(
-						   Encoding.UTF8.GetBytes(config["JWT:SecritKey"]));
-
-						SigningCredentials signingCredentials =
-							new SigningCredentials(SignKey, SecurityAlgorithms.HmacSha256);
-
-						JwtSecurityToken mytoken = new JwtSecurityToken(
-						   issuer: config["JWT:ValidIss"],//provider create token
-						   audience: config["JWT:ValidAud"],//cousumer url
-						expires: DateTime.Now.AddHours(1),
-						   claims: myclaims,
-						   signingCredentials: signingCredentials);
-						return Ok(new
+						catch (InvalidOperationException ex)
 						{
-							token = new JwtSecurityTokenHandler().WriteToken(mytoken),
-							expired = mytoken.ValidTo
-						});
+							logger.LogError(ex, "JWT configuration is invalid while logging in user {UserName}.", userDTO.UserName);
+							return BuildErrorResponse(StatusCodes.Status500InternalServerError, "JWT_CONFIG_MISSING", ex.Message);
+						}
+						catch (Exception ex)
+						{
+							logger.LogError(ex, "Unexpected error while generating token for user {UserName}.", userDTO.UserName);
+							return BuildErrorResponse(StatusCodes.Status500InternalServerError, "AUTH_INTERNAL_ERROR", "Unable to process login request.");
+						}
 					}
 				}
-				return BadRequest("Invalid Request");
+				return BuildErrorResponse(StatusCodes.Status401Unauthorized, "INVALID_CREDENTIALS", "Invalid username or password.");
 			}
-			return BadRequest(ModelState);
+
+			var modelErrors = ModelState
+				.Where(kvp => kvp.Value?.Errors.Count > 0)
+				.ToDictionary(
+					kvp => kvp.Key,
+					kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray());
+
+			return BuildErrorResponse(StatusCodes.Status400BadRequest, "VALIDATION_ERROR", "Invalid request payload.", modelErrors);
+		}
+
+		private IActionResult BuildErrorResponse(int statusCode, string code, string message, object? details = null)
+		{
+			return StatusCode(statusCode, new
+			{
+				success = false,
+				error = new
+				{
+					code,
+					message,
+					details
+				}
+			});
 		}
 
 	}

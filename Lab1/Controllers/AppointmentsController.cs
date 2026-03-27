@@ -1,17 +1,20 @@
 using Lab1.DTO;
 using Lab1.Models;
-using Lab1.Services;
+using Lab1.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Globalization;
 
 namespace Lab1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class AppointmentsController : ControllerBase
     {
-        private readonly AppointmentOperations _service;
+        private readonly IAppointmentOperations _service;
 
-        public AppointmentsController(AppointmentOperations service)
+        public AppointmentsController(IAppointmentOperations service)
         {
             _service = service;
         }
@@ -57,12 +60,13 @@ namespace Lab1.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateAppointmentDTO dto)
         {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
             try
             {
                 // Parse DateTime from string
-                if (!DateTime.TryParse(dto.DateTimeString, out DateTime parsedDateTime))
+                if (!DateTime.TryParse(dto.DateTimeString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime parsedDateTime))
                 {
-                    return BadRequest("Invalid dateTime format. Use ISO format like '2024-12-25T10:00:00'");
+                    return BadRequest("Invalid dateTime format. Use ISO 8601 UTC format like '2024-12-25T10:00:00Z'");
                 }
 
                 var appointment = new Appointment
@@ -91,12 +95,13 @@ namespace Lab1.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] CreateAppointmentDTO dto)
         {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
             try
             {
                 // Parse DateTime from string
-                if (!DateTime.TryParse(dto.DateTimeString, out DateTime parsedDateTime))
+                if (!DateTime.TryParse(dto.DateTimeString, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime parsedDateTime))
                 {
-                    return BadRequest($"Invalid dateTime format: '{dto.DateTimeString}'. Use ISO format like '2024-12-25T10:00:00'");
+                    return BadRequest($"Invalid dateTime format: '{dto.DateTimeString}'. Use ISO 8601 UTC format like '2024-12-25T10:00:00Z'");
                 }
 
                 // Validate DateTime is reasonable

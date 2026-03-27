@@ -1,4 +1,4 @@
-﻿using Lab1.DTO;
+using Lab1.DTO;
 using Lab1.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -25,8 +25,7 @@ namespace Lab1.Controllers
 				ApplicationUser user = new ApplicationUser
 				{
 					UserName = userDTO.UserName,
-					Email = userDTO.Email,
-					PasswordHash=userDTO.Password,
+					Email = userDTO.Email
 				};
 				
 				IdentityResult result=	await userManager.CreateAsync(user,userDTO.Password);
@@ -78,8 +77,8 @@ namespace Lab1.Controllers
 			if (user != null)
 			{
 				user.UserName = userDTO.UserName;
-				user.PasswordHash = userDTO.Password;
 				user.Email = userDTO.Email;
+				user.PasswordHash = userManager.PasswordHasher.HashPassword(user, userDTO.Password);
 
 				IdentityResult result = await userManager.UpdateAsync(user);
 				if (result.Succeeded)

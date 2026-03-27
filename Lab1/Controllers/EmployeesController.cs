@@ -1,11 +1,14 @@
+using Lab1.DTO;
 using Microsoft.AspNetCore.Mvc;
 using Lab1.Models;
 using Lab1.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Lab1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class EmployeesController : ControllerBase
     {
         private readonly IEmployeeOperations _employeeService;
@@ -19,7 +22,7 @@ namespace Lab1.Controllers
         public async Task<IActionResult> GetAll()
         {
             var result = await _employeeService.GetAllAsync();
-            return Ok(result);
+            return Ok(result.Select(MapToResponseDto));
         }
 
         [HttpGet("{id}")]
@@ -30,25 +33,45 @@ namespace Lab1.Controllers
             if (employee is null)
                 return NotFound("Employee not found");
 
-            return Ok(employee);
+            return Ok(MapToResponseDto(employee));
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Employee employee)
+        public async Task<IActionResult> Create([FromBody] CreateEmployeeDto employeeDto)
         {
-            if (employee is null)
-                return BadRequest("Invalid data");
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var employee = new Employee
+            {
+                Name = employeeDto.Name,
+                Email = employeeDto.Email,
+                Phone = employeeDto.Phone,
+                Role = employeeDto.Role,
+                Status = employeeDto.Status,
+                UserId = employeeDto.UserId
+            };
 
             var created = await _employeeService.CreateAsync(employee);
 
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, MapToResponseDto(created));
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Employee employee)
+        public async Task<IActionResult> Update(int id, [FromBody] UpdateEmployeeDto employeeDto)
         {
-            if (employee is null)
-                return BadRequest("Invalid data");
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var employee = new Employee
+            {
+                Name = employeeDto.Name,
+                Email = employeeDto.Email,
+                Phone = employeeDto.Phone,
+                Role = employeeDto.Role,
+                Status = employeeDto.Status,
+                UserId = employeeDto.UserId
+            };
 
             var success = await _employeeService.UpdateAsync(id, employee);
 
@@ -67,6 +90,21 @@ namespace Lab1.Controllers
                 return NotFound("Employee not found");
 
             return Ok("Deleted successfully");
+        }
+
+        private static EmployeeResponseDto MapToResponseDto(Employee employee)
+        {
+            return new EmployeeResponseDto
+            {
+                Id = employee.Id,
+                Name = employee.Name ?? string.Empty,
+                Email = employee.Email,
+                Phone = employee.Phone,
+                Role = employee.Role,
+                Status = employee.Status,
+                CreatedDate = employee.CreatedDate,
+                UserId = employee.UserId
+            };
         }
     }
 }

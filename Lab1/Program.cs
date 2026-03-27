@@ -30,9 +30,11 @@ namespace Lab1
             // Dependency Injection (Service)
             builder.Services.AddScoped<IEmployeeOperations, EmployeeOperations>();
             builder.Services.AddScoped<ICustomerOperations, CustomerOperations>();
-            builder.Services.AddScoped<PropertyOperations>();
-            builder.Services.AddScoped<InteractionOperations>();
-            builder.Services.AddScoped<AppointmentOperations>();
+            builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+            builder.Services.AddScoped<IPropertyOperations, PropertyOperations>();
+            builder.Services.AddScoped<IInteractionOperations, InteractionOperations>();
+            builder.Services.AddScoped<IAppointmentOperations, AppointmentOperations>();
+            builder.Services.AddScoped<IDealOperations, DealOperations>();
 
 
             // CORS
@@ -65,6 +67,18 @@ namespace Lab1
             });
 
             // JWT Authentication
+            builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+
+            var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+            jwtOptions.SecretKey = Environment.GetEnvironmentVariable("JWT__SecretKey") ?? jwtOptions.SecretKey;
+
+            if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey))
+                throw new InvalidOperationException("JWT:SecretKey is not configured. Set it in environment variable JWT__SecretKey.");
+            if (string.IsNullOrWhiteSpace(jwtOptions.ValidIssuer))
+                throw new InvalidOperationException("JWT:ValidIssuer is not configured.");
+            if (string.IsNullOrWhiteSpace(jwtOptions.ValidAudience))
+                throw new InvalidOperationException("JWT:ValidAudience is not configured.");
+
             builder.Services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -78,10 +92,10 @@ namespace Lab1
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = builder.Configuration["JWT:ValidIssuer"],
+                    ValidIssuer = jwtOptions.ValidIssuer,
 
                     ValidateAudience = true,
-                    ValidAudience = builder.Configuration["JWT:ValidAudience"],
+                    ValidAudience = jwtOptions.ValidAudience,
 
                     ValidateLifetime = true,
 
@@ -89,7 +103,7 @@ namespace Lab1
 
                     IssuerSigningKey = new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(
-                            builder.Configuration["JWT:SecretKey"] ?? throw new InvalidOperationException("JWT:SecretKey is not configured")))
+                            jwtOptions.SecretKey))
                 };
             });
 

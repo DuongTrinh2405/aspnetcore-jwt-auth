@@ -1,9 +1,10 @@
 using Lab1.Models;
+using Lab1.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lab1.Services
 {
-    public class InteractionOperations
+    public class InteractionOperations : IInteractionOperations
     {
         private readonly Context _context;
 
@@ -15,6 +16,7 @@ namespace Lab1.Services
         public async Task<IEnumerable<Interaction>> GetAllAsync()
         {
             return await _context.Interactions
+                .AsNoTracking()
                 .Include(i => i.Customer)
                 .Include(i => i.Property)
                 .Include(i => i.Employee)
@@ -24,6 +26,7 @@ namespace Lab1.Services
         public async Task<Interaction?> GetByIdAsync(int id)
         {
             return await _context.Interactions
+                .AsNoTracking()
                 .Include(i => i.Customer)
                 .Include(i => i.Property)
                 .Include(i => i.Employee)
@@ -33,6 +36,7 @@ namespace Lab1.Services
         public async Task<IEnumerable<Interaction>> GetByCustomerIdAsync(int customerId)
         {
             return await _context.Interactions
+                .AsNoTracking()
                 .Where(i => i.CustomerId == customerId)
                 .Include(i => i.Property)
                 .Include(i => i.Employee)
@@ -42,6 +46,7 @@ namespace Lab1.Services
         public async Task<IEnumerable<Interaction>> GetByPropertyIdAsync(int propertyId)
         {
             return await _context.Interactions
+                .AsNoTracking()
                 .Where(i => i.PropertyId == propertyId)
                 .Include(i => i.Customer)
                 .Include(i => i.Employee)

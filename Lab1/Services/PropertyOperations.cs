@@ -1,9 +1,10 @@
 using Lab1.Models;
+using Lab1.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lab1.Services
 {
-    public class PropertyOperations
+    public class PropertyOperations : IPropertyOperations
     {
         private readonly Context _context;
 
@@ -15,6 +16,7 @@ namespace Lab1.Services
         public async Task<IEnumerable<Property>> GetAllAsync()
         {
             return await _context.Properties
+                .AsNoTracking()
                 .Include(p => p.Employee)
                 .Include(p => p.Customer)
                 .ToListAsync();
@@ -23,6 +25,7 @@ namespace Lab1.Services
         public async Task<Property?> GetByIdAsync(int id)
         {
             return await _context.Properties
+                .AsNoTracking()
                 .Include(p => p.Employee)
                 .Include(p => p.Customer)
                 .FirstOrDefaultAsync(p => p.Id == id);

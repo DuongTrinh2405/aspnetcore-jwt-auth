@@ -15,12 +15,12 @@ namespace Lab1.Services
 
         public async Task<List<Employee>> GetAllAsync()
         {
-            return await _context.Employees.ToListAsync();
+            return await _context.Employees.AsNoTracking().ToListAsync();
         }
 
         public async Task<Employee?> GetByIdAsync(int id)
         {
-            return await _context.Employees.FindAsync(id);
+            return await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
         }
 
         public async Task<Employee> CreateAsync(Employee employee)

@@ -1,9 +1,12 @@
+using Lab1.DTO;
 using Lab1.Models;
 using Lab1.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerOperations _service;
@@ -17,7 +20,7 @@ public class CustomersController : ControllerBase
     public async Task<IActionResult> GetAll()
     {
         var data = await _service.GetAllAsync();
-        return Ok(data);
+        return Ok(data.Select(MapToResponseDto));
     }
 
     [HttpGet("{id}")]
@@ -27,19 +30,45 @@ public class CustomersController : ControllerBase
 
         if (customer is null) return NotFound(); // ✅ FIX
 
-        return Ok(customer);
+        return Ok(MapToResponseDto(customer));
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(Customer customer)
+    public async Task<IActionResult> Create(CreateCustomerDto dto)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var customer = new Customer
+        {
+            Name = dto.Name,
+            Phone = dto.Phone,
+            Email = dto.Email,
+            Address = dto.Address,
+            Status = dto.Status,
+            EmployeeId = dto.EmployeeId,
+            LastContactDate = dto.LastContactDate
+        };
+
         var result = await _service.CreateAsync(customer);
-        return Ok(result);
+        return Ok(MapToResponseDto(result));
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, Customer customer)
+    public async Task<IActionResult> Update(int id, UpdateCustomerDto dto)
     {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        var customer = new Customer
+        {
+            Name = dto.Name,
+            Phone = dto.Phone,
+            Email = dto.Email,
+            Address = dto.Address,
+            Status = dto.Status,
+            EmployeeId = dto.EmployeeId,
+            LastContactDate = dto.LastContactDate
+        };
+
         var updated = await _service.UpdateAsync(id, customer);
         if (!updated) return NotFound();
 
@@ -53,5 +82,21 @@ public class CustomersController : ControllerBase
         if (!deleted) return NotFound();
 
         return Ok("Deleted");
+    }
+
+    private static CustomerResponseDto MapToResponseDto(Customer customer)
+    {
+        return new CustomerResponseDto
+        {
+            Id = customer.Id,
+            Name = customer.Name,
+            Phone = customer.Phone,
+            Email = customer.Email,
+            Address = customer.Address,
+            Status = customer.Status,
+            EmployeeId = customer.EmployeeId,
+            CreatedDate = customer.CreatedDate,
+            LastContactDate = customer.LastContactDate
+        };
     }
 }

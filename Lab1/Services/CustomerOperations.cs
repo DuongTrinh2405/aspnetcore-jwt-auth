@@ -16,6 +16,7 @@ namespace Lab1.Services
         public async Task<IEnumerable<Customer>> GetAllAsync()
         {
             return await _context.Customers
+                .AsNoTracking()
                 .Include(c => c.Employee)
                 .ToListAsync();
         }
@@ -23,6 +24,7 @@ namespace Lab1.Services
         public async Task<Customer?> GetByIdAsync(int id)
         {
             return await _context.Customers
+                .AsNoTracking()
                 .Include(c => c.Employee)
                 .FirstOrDefaultAsync(c => c.Id == id);
         }

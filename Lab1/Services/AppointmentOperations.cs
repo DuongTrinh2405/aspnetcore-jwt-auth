@@ -1,9 +1,10 @@
 using Lab1.Models;
+using Lab1.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lab1.Services
 {
-    public class AppointmentOperations
+    public class AppointmentOperations : IAppointmentOperations
     {
         private readonly Context _context;
 
@@ -15,6 +16,7 @@ namespace Lab1.Services
         public async Task<IEnumerable<Appointment>> GetAllAsync()
         {
             return await _context.Appointments
+                .AsNoTracking()
                 .Include(a => a.Customer)
                 .Include(a => a.Property)
                 .Include(a => a.Employee)
@@ -24,6 +26,7 @@ namespace Lab1.Services
         public async Task<Appointment?> GetByIdAsync(int id)
         {
             return await _context.Appointments
+                .AsNoTracking()
                 .Include(a => a.Customer)
                 .Include(a => a.Property)
                 .Include(a => a.Employee)
@@ -33,6 +36,7 @@ namespace Lab1.Services
         public async Task<IEnumerable<Appointment>> GetByCustomerIdAsync(int customerId)
         {
             return await _context.Appointments
+                .AsNoTracking()
                 .Where(a => a.CustomerId == customerId)
                 .Include(a => a.Property)
                 .Include(a => a.Employee)
@@ -42,6 +46,7 @@ namespace Lab1.Services
         public async Task<IEnumerable<Appointment>> GetByEmployeeIdAsync(int employeeId)
         {
             return await _context.Appointments
+                .AsNoTracking()
                 .Where(a => a.EmployeeId == employeeId)
                 .Include(a => a.Customer)
                 .Include(a => a.Property)
@@ -51,6 +56,7 @@ namespace Lab1.Services
         public async Task<IEnumerable<Appointment>> GetByPropertyIdAsync(int propertyId)
         {
             return await _context.Appointments
+                .AsNoTracking()
                 .Where(a => a.PropertyId == propertyId)
                 .Include(a => a.Customer)
                 .Include(a => a.Employee)

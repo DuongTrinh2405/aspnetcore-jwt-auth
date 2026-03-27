@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +7,7 @@ namespace Lab1.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
+	[Authorize(Roles = "Admin")]
 	public class RoleController : ControllerBase
 	{
 		private readonly RoleManager<IdentityRole> roleManager;
@@ -67,10 +68,9 @@ namespace Lab1.Controllers
 			}
 		}
 		[HttpPut]
-		[Authorize(Roles = "Admin")]
 		public async Task <IActionResult>UpdateRole(string roleName,string newRoleName)
 		{
-			IdentityRole role = await roleManager.FindByNameAsync(roleName);
+			IdentityRole? role = await roleManager.FindByNameAsync(roleName);
 			if(role != null)
 			{   role.Name = newRoleName;
 				IdentityResult result=await roleManager.UpdateAsync(role);
