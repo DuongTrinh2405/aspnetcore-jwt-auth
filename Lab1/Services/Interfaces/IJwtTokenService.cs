@@ -4,6 +4,6 @@ namespace Lab1.Services.Interfaces
 {
     public interface IJwtTokenService
     {
-        string GenerateToken(ApplicationUser user, IEnumerable<string> roles);
+        string GenerateToken(ApplicationUser user, IEnumerable<string>? roles = null);
     }
 }
