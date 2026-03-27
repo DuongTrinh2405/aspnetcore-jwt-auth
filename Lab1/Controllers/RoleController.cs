@@ -7,6 +7,7 @@ namespace Lab1.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
+	[Authorize(Roles = "Admin")]
 	public class RoleController : ControllerBase
 	{
 		private readonly RoleManager<IdentityRole> roleManager;
@@ -41,10 +42,10 @@ namespace Lab1.Controllers
 		[HttpGet]
 		public IActionResult GetRoles()
 		{
-			IQueryable<IdentityRole> roles = roleManager.Roles;
+			var roles = roleManager.Roles.ToList();
 			return Ok(roles);
 		}
-		[HttpDelete]
+		[HttpDelete("{roleName}")]
 		public async Task< IActionResult> DeleteRole(string roleName)
 		{
 			var role= await roleManager.FindByNameAsync(roleName);

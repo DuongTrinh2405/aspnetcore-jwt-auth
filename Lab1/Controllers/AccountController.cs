@@ -22,74 +22,87 @@ namespace Lab1.Controllers
 	    this.config = config;
 		}
 		[HttpPost("register")]
-		public async Task< IActionResult> Registe(RegisterUserDTO userDTO)
+		public async Task<IActionResult> Registe(RegisterUserDTO userDTO)
 		{
-			if(ModelState.IsValid)
+			if (userDTO == null) return BadRequest("Payload is required.");
+			if (!ModelState.IsValid) return BadRequest(ModelState);
+
+			if (await userManager.FindByNameAsync(userDTO.UserName) != null)
 			{
-				ApplicationUser AppUser = new ApplicationUser()
-				{
-					UserName = userDTO.UserName,
-					Email = userDTO.Email,
-					PasswordHash = userDTO.Password,
-				};
-			 IdentityResult Result=	await userManager.CreateAsync(AppUser,userDTO.Password);
-				if (Result.Succeeded)
-				{
-					//this when you make to add registered user as an admin
-					await userManager.AddToRoleAsync(AppUser, "Admin");
-					return Ok("Account Created");
-				}
-				return BadRequest(Result.Errors);
+				return Conflict("Username already exists.");
 			}
-			return BadRequest(ModelState);
+
+			if (await userManager.FindByEmailAsync(userDTO.Email) != null)
+			{
+				return Conflict("Email already exists.");
+			}
+
+			var appUser = new ApplicationUser
+			{
+				UserName = userDTO.UserName,
+				Email = userDTO.Email,
+			};
+
+			var result = await userManager.CreateAsync(appUser, userDTO.Password);
+			if (!result.Succeeded)
+			{
+				return BadRequest(result.Errors);
+			}
+
+			await userManager.AddToRoleAsync(appUser, "Staff");
+			return Ok("Account created successfully.");
 		}
 
 		[HttpPost("login")]
-		public async Task< IActionResult> Login(LoginUserDTO userDTO)
+		public async Task<IActionResult> Login(LoginUserDTO userDTO)
 		{
-			if(ModelState.IsValid)
+			if (userDTO == null) return BadRequest("Payload is required.");
+			if (!ModelState.IsValid) return BadRequest(ModelState);
+
+			var userFromDB = await userManager.FindByNameAsync(userDTO.UserName);
+			if (userFromDB == null) return Unauthorized("Invalid username or password.");
+
+			var isPasswordValid = await userManager.CheckPasswordAsync(userFromDB, userDTO.Password);
+			if (!isPasswordValid) return Unauthorized("Invalid username or password.");
+
+			var secretKey = config["JWT:SecretKey"];
+			if (string.IsNullOrWhiteSpace(secretKey)) return StatusCode(500, "JWT secret key is not configured.");
+
+			var myclaims = new List<Claim>
 			{
-				ApplicationUser? UserFromDB= await userManager.FindByNameAsync(userDTO.UserName);
-				if (UserFromDB != null)
-				{
-					bool found= await userManager.CheckPasswordAsync(UserFromDB,userDTO.Password);
-					if (found)
-					{
-						//Create Token
-						List<Claim> myclaims = new List<Claim>();
-						myclaims.Add(new Claim(ClaimTypes.Name,UserFromDB.UserName));
-						myclaims.Add(new Claim(ClaimTypes.NameIdentifier, UserFromDB.Id));
-						myclaims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
+				new Claim(ClaimTypes.Name, userFromDB.UserName ?? string.Empty),
+				new Claim(ClaimTypes.NameIdentifier, userFromDB.Id),
+				new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+			};
 
-						var roles=await userManager.GetRolesAsync(UserFromDB);
-						foreach (var role in roles)
-						{
-							myclaims.Add(new Claim(ClaimTypes.Role, role));
-						}
-
-						var SignKey = new SymmetricSecurityKey(
-						   Encoding.UTF8.GetBytes(config["JWT:SecritKey"]));
-
-						SigningCredentials signingCredentials =
-							new SigningCredentials(SignKey, SecurityAlgorithms.HmacSha256);
-
-						JwtSecurityToken mytoken = new JwtSecurityToken(
-						   issuer: config["JWT:ValidIss"],//provider create token
-						   audience: config["JWT:ValidAud"],//cousumer url
-						expires: DateTime.Now.AddHours(1),
-						   claims: myclaims,
-						   signingCredentials: signingCredentials);
-						return Ok(new
-						{
-							token = new JwtSecurityTokenHandler().WriteToken(mytoken),
-							expired = mytoken.ValidTo
-						});
-					}
-				}
-				return BadRequest("Invalid Request");
+			var roles = await userManager.GetRolesAsync(userFromDB);
+			foreach (var role in roles)
+			{
+				myclaims.Add(new Claim(ClaimTypes.Role, role));
 			}
-			return BadRequest(ModelState);
-		}
 
+			var signKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+			var signingCredentials = new SigningCredentials(signKey, SecurityAlgorithms.HmacSha256);
+
+			var issuer = config["JWT:ValidIssuer"] ?? config["JWT:ValidIss"];
+			var audience = config["JWT:ValidAudience"] ?? config["JWT:ValidAud"];
+			if (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(audience))
+			{
+				return StatusCode(500, "JWT issuer/audience is not configured.");
+			}
+
+			var token = new JwtSecurityToken(
+				issuer: issuer,
+				audience: audience,
+				expires: DateTime.UtcNow.AddHours(1),
+				claims: myclaims,
+				signingCredentials: signingCredentials);
+
+			return Ok(new
+			{
+				token = new JwtSecurityTokenHandler().WriteToken(token),
+				expired = token.ValidTo
+			});
+		}
 	}
 }
