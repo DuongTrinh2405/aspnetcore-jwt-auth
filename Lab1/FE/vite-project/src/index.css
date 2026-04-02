@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+/* ============================= */
+/* GLOBAL THEME */
+/* ============================= */
+:root {
+  --text: #333;
+  --bg: #f5f6fa;
+  --border: #e5e4e7;
+  --accent: #1677ff;
+
+  font-family: system-ui, sans-serif;
+}
+
+/* ============================= */
+/* RESET */
+/* ============================= */
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Root layout */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Fix box sizing */
+* {
+  box-sizing: border-box;
+}
+
+/* ============================= */
+/* SPINNER */
+/* ============================= */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
