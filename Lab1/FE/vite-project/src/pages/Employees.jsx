@@ -143,7 +143,7 @@ function Employees() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="app-page space-y-6">
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>

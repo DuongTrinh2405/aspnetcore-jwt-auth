@@ -16,12 +16,11 @@ namespace Lab1.Services
         }
 
         // ✅ GET ALL + SEARCH + FILTER + PAGINATION
-        public async Task<(IEnumerable<Customer> Data, int Total)> GetAllAsync(
+        public async Task<(IEnumerable<Customer> Data, int Total, int Page, int PageSize)> GetAllAsync(
             CustomerQueryDto query,
             string userId,
             string role)
         {
-            // 🔥 FIX: include Employee để lấy tên nhân viên
             IQueryable<Customer> q = _context.Customers
                 .Include(c => c.Employee);
 
@@ -34,7 +33,7 @@ namespace Lab1.Services
                     .FirstOrDefaultAsync();
 
                 if (employeeId == 0)
-                    return (new List<Customer>(), 0);
+                    return (new List<Customer>(), 0, 1, 10);
 
                 q = q.Where(c => c.EmployeeId == employeeId);
             }
@@ -54,28 +53,23 @@ namespace Lab1.Services
 
             // 🔍 FILTER STATUS
             if (query.Status.HasValue)
-            {
                 q = q.Where(c => c.Status == query.Status.Value);
-            }
 
             // 🔍 FILTER DATE
             if (query.FromDate.HasValue)
-            {
                 q = q.Where(c => c.CreatedDate >= query.FromDate.Value);
-            }
 
             if (query.ToDate.HasValue)
-            {
                 q = q.Where(c => c.CreatedDate <= query.ToDate.Value);
-            }
 
             // 📊 TOTAL
             var total = await q.CountAsync();
 
-            // 📄 PAGINATION
+            // ✅ FIX: normalize page
             var page = query.Page <= 0 ? 1 : query.Page;
             var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
 
+            // 📄 PAGINATION
             var data = await q
                 .AsNoTracking()
                 .OrderByDescending(c => c.Id)
@@ -83,7 +77,8 @@ namespace Lab1.Services
                 .Take(pageSize)
                 .ToListAsync();
 
-            return (data, total);
+            // ✅ FIX QUAN TRỌNG
+            return (data, total, page, pageSize);
         }
 
         public async Task<Customer?> GetByIdAsync(int id, string userId, string role)
@@ -117,7 +112,7 @@ namespace Lab1.Services
                 Address = dto.Address ?? "",
                 Status = CustomerStatus.New,
                 LastContactDate = dto.LastContactDate,
-                EmployeeId = employee.Id, // 🔥 auto assign cho staff
+                EmployeeId = employee.Id,
                 CreatedDate = DateTime.UtcNow
             };
 
@@ -136,7 +131,6 @@ namespace Lab1.Services
             if (customer == null)
                 return false;
 
-            // 🔐 chỉ owner mới sửa được
             if (role != "Admin" && customer.Employee?.UserId != userId)
                 return false;
 
@@ -160,7 +154,6 @@ namespace Lab1.Services
             if (customer == null)
                 return false;
 
-            // 🔐 chỉ owner mới xoá được
             if (role != "Admin" && customer.Employee?.UserId != userId)
                 return false;
 

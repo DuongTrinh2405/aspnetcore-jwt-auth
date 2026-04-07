@@ -4,7 +4,7 @@ import Header from "./Header";
 
 function Layout() {
   return (
-    <div className="flex h-screen w-full bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="flex min-h-screen w-full app-shell">
       {/* SIDEBAR */}
       <Sidebar />
 
@@ -15,7 +15,7 @@ function Layout() {
 
         {/* CONTENT */}
         <div className="flex-1 p-6 overflow-y-auto">
-          <div className="w-full min-h-full bg-white rounded-2xl shadow-lg p-6 border border-slate-200/50">
+          <div className="w-full min-h-full app-card p-6">
             <Outlet />
           </div>
         </div>

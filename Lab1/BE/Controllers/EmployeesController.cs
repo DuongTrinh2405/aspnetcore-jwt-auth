@@ -12,24 +12,24 @@ namespace Lab1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+    [Authorize] // ✅ Admin + Staff đều truy cập được
     public class EmployeesController : ControllerBase
     {
         private readonly IEmployeeOperations _employeeService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
-        private readonly Context _context; // ✅ THÊM
+        private readonly Context _context;
 
         public EmployeesController(
             IEmployeeOperations employeeService,
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
-            Context context) // ✅ THÊM
+            Context context)
         {
             _employeeService = employeeService;
             _userManager = userManager;
             _roleManager = roleManager;
-            _context = context; // ✅ THÊM
+            _context = context;
         }
 
         // =========================
@@ -55,21 +55,40 @@ namespace Lab1.Controllers
         }
 
         // =========================
-        // GET BY ID
+        // GET BY ID (🔥 FIX CHÍNH)
         // =========================
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            var employee = await _employeeService.GetByIdAsync(id);
-
-            if (employee is null)
-                return NotFound(new { success = false, message = "Employee not found" });
-
-            return Ok(new
+            try
             {
-                success = true,
-                data = await MapToResponseDto(employee)
-            });
+                var employee = await _employeeService.GetByIdAsync(id);
+
+                if (employee is null)
+                {
+                    return Ok(new
+                    {
+                        success = false,
+                        message = "Employee not found",
+                        data = (object?)null // ✅ FIX NULL
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    data = await MapToResponseDto(employee)
+                });
+            }
+            catch (Exception ex)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = ex.Message,
+                    data = (object?)null // ✅ FIX NULL
+                });
+            }
         }
 
         // =========================
@@ -114,13 +133,11 @@ namespace Lab1.Controllers
         }
 
         // =========================
-        // CREATE (FIXED)
+        // CREATE
         // =========================
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateEmployeeDto dto)
         {
-            Console.WriteLine($"[CREATE] ROLE FROM FE: {dto.Role}");
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -128,21 +145,16 @@ namespace Lab1.Controllers
 
             try
             {
-                // 🔥 CHECK EMAIL USER
                 var existingUser = await _userManager.FindByEmailAsync(dto.Email);
                 if (existingUser != null)
                     return BadRequest(new { success = false, message = "Email already exists" });
 
-                // 🔥 CHECK EMAIL EMPLOYEE
                 var existsEmployee = await _context.Employees
                     .AnyAsync(e => e.Email == dto.Email);
 
                 if (existsEmployee)
                     return BadRequest(new { success = false, message = "Employee email already exists" });
 
-                // ======================
-                // CREATE USER
-                // ======================
                 var user = new ApplicationUser
                 {
                     UserName = dto.Email,
@@ -161,9 +173,6 @@ namespace Lab1.Controllers
                     });
                 }
 
-                // ======================
-                // ROLE
-                // ======================
                 var roleName = dto.Role == EmployeeRole.Admin ? "Admin" : "Staff";
 
                 if (!await _roleManager.RoleExistsAsync(roleName))
@@ -173,9 +182,6 @@ namespace Lab1.Controllers
 
                 await _userManager.AddToRoleAsync(user, roleName);
 
-                // ======================
-                // CREATE EMPLOYEE
-                // ======================
                 var employee = new Employee
                 {
                     Name = dto.Name,
@@ -214,8 +220,6 @@ namespace Lab1.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateEmployeeDto dto)
         {
-            Console.WriteLine($"[UPDATE] ROLE FROM FE: {dto.Role}");
-
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
@@ -326,6 +330,30 @@ namespace Lab1.Controllers
                 });
             }
         }
+
+        [HttpGet("me")]
+[Authorize]
+public async Task<IActionResult> GetMyProfile()
+{
+    var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+    if (userId == null)
+        return Unauthorized();
+
+    var employee = await _context.Employees
+        .FirstOrDefaultAsync(e => e.UserId == userId);
+
+    if (employee == null)
+        return NotFound();
+
+    return Ok(new
+    {
+        name = employee.Name,
+        email = employee.Email,
+        phone = employee.Phone,
+        role = employee.Role
+    });
+}
 
         // =========================
         // MAP DTO

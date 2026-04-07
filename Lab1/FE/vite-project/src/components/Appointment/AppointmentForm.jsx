@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formStyles as styles } from "../../styles/formStyles";
 
 function AppointmentForm({
   initialData,
@@ -10,48 +11,31 @@ function AppointmentForm({
   const [form, setForm] = useState({
     customerId: "",
     propertyId: "",
-    date: "",
+    dateTime: "",
     status: 0,
     notes: "",
   });
 
-  // ==============================
-  // FORMAT DATE FOR INPUT
-  // ==============================
+  const [loading, setLoading] = useState(false);
+  const isEdit = !!initialData;
+
   const formatForInput = (date) => {
     if (!date) return "";
     return new Date(date).toISOString().slice(0, 16);
   };
 
-  // ==============================
-  // LOAD EDIT DATA
-  // ==============================
   useEffect(() => {
     if (initialData) {
       setForm({
         customerId: initialData.customerId || "",
         propertyId: initialData.propertyId || "",
-        date: formatForInput(
-          initialData.date || initialData.dateTime
-        ),
+        dateTime: formatForInput(initialData.dateTime),
         status: initialData.status ?? 0,
         notes: initialData.notes || "",
-      });
-    } else {
-      // reset khi tạo mới
-      setForm({
-        customerId: "",
-        propertyId: "",
-        date: "",
-        status: 0,
-        notes: "",
       });
     }
   }, [initialData]);
 
-  // ==============================
-  // HANDLE CHANGE
-  // ==============================
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -66,110 +50,181 @@ function AppointmentForm({
     }));
   };
 
-  // ==============================
-  // SUBMIT
-  // ==============================
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const validate = () => {
+    if (!form.customerId) return "Chọn khách hàng";
+    if (!form.propertyId) return "Chọn bất động sản";
+    if (!form.dateTime) return "Chọn ngày giờ";
 
-    if (!form.customerId || !form.propertyId || !form.date) {
-      alert("Vui lòng nhập đầy đủ thông tin");
-      return;
+    const selectedDate = new Date(form.dateTime);
+    if (selectedDate < new Date()) {
+      return "Không thể đặt lịch trong quá khứ";
     }
 
-    onSubmit({
-      customerId: form.customerId,
-      propertyId: form.propertyId,
-     appointmentDate: new Date(form.date).toISOString(), // 🔥 FIX CHÍNH
-      status: form.status,
-      notes: form.notes,
-    });
+    return null;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const error = validate();
+    if (error) return alert(error);
+
+    try {
+      setLoading(true);
+
+      await onSubmit({
+        customerId: form.customerId,
+        propertyId: form.propertyId,
+        dateTime: new Date(form.dateTime).toISOString(),
+        status: form.status,
+        notes: form.notes,
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Có lỗi xảy ra");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFocus = (e) => {
+    Object.assign(e.target.style, styles.focus);
+  };
+
+  const handleBlur = (e, baseStyle) => {
+    Object.assign(e.target.style, baseStyle);
+  };
+
+  const handleHover = (e) => {
+    Object.assign(e.target.style, styles.btnHover);
+  };
+
+  const handleLeave = (e) => {
+    Object.assign(e.target.style, styles.btnPrimary);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-xl w-[420px] shadow-lg">
-        <h2 className="text-lg font-bold mb-4">
-          {initialData ? "Cập nhật lịch hẹn" : "Tạo lịch hẹn"}
-        </h2>
+    <div style={styles.overlay}>
+      <div style={styles.modal}>
+        {/* HEADER */}
+        <h3 style={styles.title}>
+          {isEdit ? "Cập nhật lịch hẹn" : "Tạo lịch hẹn"}
+        </h3>
+        <p style={styles.subtitle}>
+          Điền thông tin để {isEdit ? "cập nhật" : "tạo"} lịch hẹn
+        </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} style={styles.form}>
           {/* CUSTOMER */}
-          <select
-            name="customerId"
-            value={form.customerId}
-            onChange={handleChange}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Chọn khách hàng</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Khách hàng *</label>
+            <select
+              name="customerId"
+              value={form.customerId}
+              onChange={handleChange}
+              style={styles.select}
+              onFocus={handleFocus}
+              onBlur={(e) => handleBlur(e, styles.select)}
+            >
+              <option value="">-- Chọn khách hàng --</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* PROPERTY */}
-          <select
-            name="propertyId"
-            value={form.propertyId}
-            onChange={handleChange}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Chọn bất động sản</option>
-            {properties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.title}
-              </option>
-            ))}
-          </select>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Bất động sản *</label>
+            <select
+              name="propertyId"
+              value={form.propertyId}
+              onChange={handleChange}
+              style={styles.select}
+              onFocus={handleFocus}
+              onBlur={(e) => handleBlur(e, styles.select)}
+            >
+              <option value="">-- Chọn BĐS --</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          {/* DATE */}
-          <input
-            type="datetime-local"
-            name="date"
-            value={form.date}
-            onChange={handleChange}
-            className="w-full border p-2 rounded"
-          />
+          {/* DATETIME */}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Ngày giờ *</label>
+            <input
+              type="datetime-local"
+              name="dateTime"
+              value={form.dateTime}
+              onChange={handleChange}
+              min={new Date().toISOString().slice(0, 16)}
+              style={styles.input}
+              onFocus={handleFocus}
+              onBlur={(e) => handleBlur(e, styles.input)}
+            />
+          </div>
 
           {/* STATUS */}
-          <select
-            name="status"
-            value={form.status}
-            onChange={handleChange}
-            className="w-full border p-2 rounded"
-          >
-            <option value={0}>Scheduled</option>
-            <option value={1}>Completed</option>
-            <option value={2}>Cancelled</option>
-            <option value={3}>No Show</option>
-          </select>
+          {isEdit && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Trạng thái</label>
+              <select
+                name="status"
+                value={form.status}
+                onChange={handleChange}
+                style={styles.select}
+                onFocus={handleFocus}
+                onBlur={(e) => handleBlur(e, styles.select)}
+              >
+                <option value={0}>Scheduled</option>
+                <option value={1}>Completed</option>
+                <option value={2}>Cancelled</option>
+                <option value={3}>No Show</option>
+              </select>
+            </div>
+          )}
 
           {/* NOTES */}
-          <textarea
-            name="notes"
-            value={form.notes}
-            onChange={handleChange}
-            placeholder="Ghi chú..."
-            className="w-full border p-2 rounded"
-          />
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Ghi chú</label>
+            <textarea
+              name="notes"
+              value={form.notes}
+              onChange={handleChange}
+              style={styles.textarea}
+              onFocus={handleFocus}
+              onBlur={(e) => handleBlur(e, styles.textarea)}
+            />
+          </div>
 
           {/* ACTIONS */}
-          <div className="flex justify-end gap-2 pt-2">
+          <div style={styles.actions}>
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1 text-gray-600"
+              style={{ ...styles.btn, ...styles.btnSecondary }}
             >
               Huỷ
             </button>
 
             <button
               type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded"
+              disabled={loading}
+              onMouseEnter={handleHover}
+              onMouseLeave={handleLeave}
+              style={{
+                ...styles.btn,
+                ...styles.btnPrimary,
+                ...(loading ? styles.btnDisabled : {}),
+              }}
             >
-              Lưu
+              {loading ? "Đang lưu..." : isEdit ? "Cập nhật" : "Tạo mới"}
             </button>
           </div>
         </form>

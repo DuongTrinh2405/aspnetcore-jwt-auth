@@ -30,12 +30,8 @@ namespace Lab1.DTO
         [Required]
         public PropertyStatus Status { get; set; }
 
-        public bool IsSold { get; set; }
+        public List<string>? ImageUrls { get; set; }
 
-        // ✅ THÊM ẢNH
-        public string? ImageUrl { get; set; }
-
-        // (có thể bỏ nếu không dùng phase này)
         public int? CustomerId { get; set; }
     }
 
@@ -64,10 +60,7 @@ namespace Lab1.DTO
 
         public PropertyStatus Status { get; set; }
 
-        public bool IsSold { get; set; }
-
-        // ✅ THÊM ẢNH
-        public string? ImageUrl { get; set; }
+        public List<string>? ImageUrls { get; set; }
 
         public int? CustomerId { get; set; }
     }
@@ -90,9 +83,9 @@ namespace Lab1.DTO
 
         public PropertyStatus Status { get; set; }
 
-        public bool IsSold { get; set; }
-
         public int? EmployeeId { get; set; }
+
+         public string? EmployeeName { get; set; } // 🔥 THÊM DÒNG NÀY
 
         public int? CustomerId { get; set; }
 
@@ -100,7 +93,6 @@ namespace Lab1.DTO
 
         public DateTime? UpdatedDate { get; set; }
 
-        // ✅ TRẢ ẢNH RA FE
-        public string? ImageUrl { get; set; }
+        public List<string>? ImageUrls { get; set; }
     }
 }

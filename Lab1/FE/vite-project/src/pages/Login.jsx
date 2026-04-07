@@ -61,10 +61,10 @@ function Login() {
   // UI
   // ==============================
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+    <div className="login-page min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
       <div className="w-full max-w-md">
         {/* Card Container */}
-        <div className="bg-white rounded-xl shadow-2xl p-8 transform transition-all duration-300 hover:scale-105">
+        <div className="app-card p-8 transition-transform duration-300 hover:-translate-y-1">
           {/* Header */}
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-800 mb-2">CRM Login</h2>
@@ -98,7 +98,7 @@ function Login() {
                   placeholder="Nhập tên đăng nhập"
                   value={form.username}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 outline-none"
+                  className="app-input"
                   required
                 />
                 <svg className="absolute right-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,7 +120,7 @@ function Login() {
                   placeholder="Nhập mật khẩu"
                   value={form.password}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 outline-none"
+                  className="app-input"
                   required
                 />
                 <svg className="absolute right-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,11 +133,7 @@ function Login() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-all duration-200 transform ${
-                loading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 hover:scale-105 active:scale-95 shadow-lg hover:shadow-xl'
-              }`}
+              className={`app-button-primary w-full ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               {loading ? (
                 <div className="flex items-center justify-center">

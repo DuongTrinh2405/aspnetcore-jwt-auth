@@ -11,6 +11,7 @@ function Sidebar() {
     { label: "Properties", path: ROUTES.PROPERTIES, icon: "🏡" },
     { label: "Deals", path: ROUTES.DEALS, icon: "💰" },
     { label: "Appointments", path: ROUTES.APPOINTMENTS, icon: "📅" },
+    { label: "Reports", path: ROUTES.REPORTS, icon: "📊" },
 
     // ✅ THÊM PROFILE (ai cũng xem được)
     { label: "Profile", path: ROUTES.PROFILE, icon: "👤" },

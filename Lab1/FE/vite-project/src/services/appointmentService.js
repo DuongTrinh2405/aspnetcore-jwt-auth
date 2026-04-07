@@ -1,14 +1,63 @@
 import api from "./api";
 
 // ==============================
-// GET ALL
+// HELPER: normalize response
 // ==============================
-export const getAppointments = async (params = {}) => {
-  try {
-    const res = await api.get("/Appointments", { params });
+const normalizeListResponse = (res, params = {}) => {
+  return {
+    data: res.data?.data || [],
+    total: res.data?.total ?? 0,
+    page: res.data?.page ?? params.page ?? 1,
+    pageSize: res.data?.pageSize ?? params.pageSize ?? 10,
+  };
+};
 
-    // BE trả về dạng: { data: [...] }
-    return res.data?.data || [];
+// ==============================
+// GET ALL (🔥 FIX: USE FILTER API)
+// ==============================
+export const getAppointments = async ({
+  page = 1,
+  pageSize = 10,
+  search = "",
+  status,
+  customerId,
+  propertyId,
+  fromDate,
+  toDate,
+} = {}) => {
+  try {
+    // 🔥 FIX: dùng payload thay vì params
+    const payload = {
+      page,
+      pageSize,
+
+      // SEARCH
+      keyword: search || undefined,
+
+      // FILTER
+      filterStatus:
+        status !== "" && status !== undefined
+          ? Number(status)
+          : undefined,
+
+      filterCustomerId: customerId
+        ? Number(customerId)
+        : undefined,
+
+      filterPropertyId: propertyId
+        ? Number(propertyId)
+        : undefined,
+
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
+    };
+
+    console.log("FILTER PAYLOAD:", payload);
+
+    // 🔥 FIX: POST thay vì GET
+    const res = await api.post("/Appointments/filter", payload);
+
+    return normalizeListResponse(res, payload);
   } catch (error) {
     console.error("GET APPOINTMENTS ERROR:", error.response?.data);
     throw error.response?.data || "Lỗi khi lấy danh sách lịch hẹn";
@@ -21,7 +70,6 @@ export const getAppointments = async (params = {}) => {
 export const getAppointmentById = async (id) => {
   try {
     const res = await api.get(`/Appointments/${id}`);
-
     return res.data?.data;
   } catch (error) {
     console.error("GET DETAIL ERROR:", error.response?.data);
@@ -37,18 +85,14 @@ export const createAppointment = async (data) => {
     const payload = {
       customerId: Number(data.customerId),
       propertyId: Number(data.propertyId),
-
-      // 🔥 QUAN TRỌNG: phải là appointmentDate
-      appointmentDate: new Date(data.appointmentDate).toISOString(),
-
-      // 🔥 đúng tên field BE
+      dateTime: new Date(data.dateTime).toISOString(),
+      status: data.status ?? 0,
       notes: data.notes || "",
     };
 
     console.log("CREATE PAYLOAD:", payload);
 
     const res = await api.post("/Appointments", payload);
-
     return res.data?.data;
   } catch (error) {
     console.error("CREATE ERROR:", error.response?.data);
@@ -62,21 +106,30 @@ export const createAppointment = async (data) => {
 export const updateAppointment = async (id, data) => {
   try {
     const payload = {
-      customerId: Number(data.customerId),
-      propertyId: Number(data.propertyId),
+      ...(data.customerId && {
+        customerId: Number(data.customerId),
+      }),
 
-      appointmentDate: new Date(data.appointmentDate).toISOString(),
+      ...(data.propertyId && {
+        propertyId: Number(data.propertyId),
+      }),
 
-      notes: data.notes || "",
+      ...(data.dateTime && {
+        dateTime: new Date(data.dateTime).toISOString(),
+      }),
 
-      // ⚠️ BE model có status khi update
-      status: data.status ?? 0,
+      ...(data.notes !== undefined && {
+        notes: data.notes,
+      }),
+
+      ...(data.status !== undefined && {
+        status: data.status,
+      }),
     };
 
     console.log("UPDATE PAYLOAD:", payload);
 
     const res = await api.put(`/Appointments/${id}`, payload);
-
     return res.data;
   } catch (error) {
     console.error("UPDATE ERROR:", error.response?.data);
@@ -90,35 +143,10 @@ export const updateAppointment = async (id, data) => {
 export const deleteAppointment = async (id) => {
   try {
     const res = await api.delete(`/Appointments/${id}`);
-
     return res.data;
   } catch (error) {
     console.error("DELETE ERROR:", error.response?.data);
     throw error.response?.data || "Lỗi khi xoá lịch hẹn";
-  }
-};
-
-// ==============================
-// SEARCH
-// ==============================
-export const searchAppointments = async (
-  search,
-  page = 1,
-  pageSize = 10
-) => {
-  try {
-    const res = await api.get("/Appointments/search", {
-      params: {
-        search,      // ✅ đúng tên BE cần
-        page,
-        pageSize,
-      },
-    });
-
-    return res.data?.data || res.data || [];
-  } catch (error) {
-    console.error("Search appointments error:", error.response?.data);
-    throw error.response?.data || "Lỗi khi tìm kiếm lịch hẹn";
   }
 };
 
@@ -128,5 +156,4 @@ export default {
   createAppointment,
   updateAppointment,
   deleteAppointment,
-  searchAppointments,
 };

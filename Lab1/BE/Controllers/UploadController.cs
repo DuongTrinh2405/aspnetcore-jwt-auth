@@ -6,7 +6,7 @@ namespace Lab1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin,Employee")] // 🔐 CHỈ NHÂN VIÊN / ADMIN
+    [Authorize]
     public class UploadController : ControllerBase
     {
         private readonly IWebHostEnvironment _env;
@@ -17,47 +17,78 @@ namespace Lab1.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Upload(IFormFile file)
+        public async Task<IActionResult> Upload([FromForm] List<IFormFile> files)
         {
-            // ❌ Check null
-            if (file == null || file.Length == 0)
-                return BadRequest(new { success = false, message = "File không hợp lệ" });
-
-            // ❌ Giới hạn size (2MB)
-            if (file.Length > 2 * 1024 * 1024)
-                return BadRequest(new { success = false, message = "File quá lớn (max 2MB)" });
-
-            // ❌ Check định dạng
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png" };
-            var ext = Path.GetExtension(file.FileName).ToLower();
-
-            if (!allowedExtensions.Contains(ext))
-                return BadRequest(new { success = false, message = "Chỉ cho phép jpg, jpeg, png" });
-
-            // ✅ Tạo tên file an toàn
-            var fileName = Guid.NewGuid() + ext;
-
-            // ✅ Đường dẫn chuẩn
-            var folder = Path.Combine(_env.WebRootPath, "uploads");
-
-            if (!Directory.Exists(folder))
-                Directory.CreateDirectory(folder);
-
-            var path = Path.Combine(folder, fileName);
-
-            // ✅ Lưu file
-            using (var stream = new FileStream(path, FileMode.Create))
+            if (files == null || files.Count == 0)
             {
-                await file.CopyToAsync(stream);
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Không có file nào được upload"
+                });
             }
 
-            // ✅ Trả URL đầy đủ
-            var url = $"{Request.Scheme}://{Request.Host}/uploads/{fileName}";
+            var urls = new List<string>();
+
+            foreach (var file in files)
+            {
+                // ❌ Bỏ file rỗng
+                if (file.Length == 0)
+                    continue;
+
+                // ❌ Giới hạn size (2MB)
+                if (file.Length > 2 * 1024 * 1024)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"File {file.FileName} quá lớn (max 2MB)"
+                    });
+                }
+
+                // ✅ Check định dạng + MIME
+                var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+                var allowedTypes = new[] { "image/jpeg", "image/png", "image/webp" };
+
+                var ext = Path.GetExtension(file.FileName).ToLower();
+
+                if (!allowedExtensions.Contains(ext) || !allowedTypes.Contains(file.ContentType))
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"File {file.FileName} không đúng định dạng (chỉ jpg, jpeg, png, webp)"
+                    });
+                }
+
+                // ✅ Tạo tên file random (tránh trùng + bảo mật)
+                var fileName = Guid.NewGuid().ToString() + ext;
+
+                // ✅ Tạo folder uploads nếu chưa có
+                var folder = Path.Combine(_env.WebRootPath, "uploads");
+
+                if (!Directory.Exists(folder))
+                    Directory.CreateDirectory(folder);
+
+                var path = Path.Combine(folder, fileName);
+
+                // ✅ Lưu file
+                using (var stream = new FileStream(path, FileMode.Create))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                // ✅ Tạo FULL URL cho FE dùng luôn
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                var url = $"{baseUrl}/uploads/{fileName}";
+
+                urls.Add(url);
+            }
 
             return Ok(new
             {
                 success = true,
-                url
+                urls
             });
         }
     }

@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 import Loading from "../components/common/Loading";
-
-import customerService from "../services/customerService";
-import dealService from "../services/dealService";
-import propertyService from "../services/propertyService";
+import dashboardService from "../services/dashboardService";
 
 // 🔥 thêm chart
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
+  YAxis,
+  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
@@ -19,7 +20,11 @@ function Dashboard() {
     customers: 0,
     deals: 0,
     properties: 0,
+    totalRevenue: 0,
+    totalWonRevenue: 0,
   });
+  const [monthlyReport, setMonthlyReport] = useState([]);
+  const [statusSummary, setStatusSummary] = useState([]);
   const [recentDeals, setRecentDeals] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,26 +35,21 @@ function Dashboard() {
       try {
         setLoading(true);
 
-        const [customers, deals, properties] = await Promise.all([
-          customerService.getCustomers(),
-          dealService.getDeals(),
-          propertyService.getProperties(),
-        ]);
+        const dashboard = await dashboardService.getDashboard();
 
         if (!isMounted) return;
 
         setStats({
-          customers: customers?.length ?? 0,
-          deals: deals?.length ?? 0,
-          properties: properties?.length ?? 0,
+          customers: dashboard.customers ?? 0,
+          deals: dashboard.deals ?? 0,
+          properties: dashboard.properties ?? 0,
+          totalRevenue: dashboard.totalRevenue ?? 0,
+          totalWonRevenue: dashboard.totalWonRevenue ?? 0,
         });
 
-        const sortedDeals = [...(deals || [])].sort((a, b) => {
-          return new Date(b.createdDate || b.createdAt || 0)
-            - new Date(a.createdDate || a.createdAt || 0);
-        });
-
-        setRecentDeals(sortedDeals.slice(0, 5));
+        setMonthlyReport(dashboard.monthlyReport ?? []);
+        setStatusSummary(dashboard.statusSummary ?? []);
+        setRecentDeals(dashboard.recentDeals ?? []);
       } catch (err) {
         console.error("Dashboard error:", err);
       } finally {
@@ -67,11 +67,11 @@ function Dashboard() {
   if (loading) return <Loading fullScreen />;
 
   return (
-    <div className="p-6 min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="app-page dashboard-page min-h-screen">
       
       {/* HEADER */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-800">
+      <div className="mb-8 rounded-[1.75rem] border border-white/80 bg-white/80 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.08)] backdrop-blur-sm">
+        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
           Dashboard
         </h1>
         <p className="text-slate-500 text-sm">
@@ -86,109 +86,117 @@ function Dashboard() {
         <StatCard title="Properties" value={stats.properties} icon="🏠" color="purple" />
       </div>
 
-      {/* CHART + ACTIVITY */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        
-        {/* CHART */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow border">
-          <h3 className="font-semibold text-slate-700 mb-4">
-            Revenue Overview
-          </h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <ReportCard title="Total Revenue" value={formatCurrency(stats.totalRevenue)} icon="💵" color="green" subtitle="Toàn bộ doanh thu deals" />
+        <ReportCard title="Won Revenue" value={formatCurrency(stats.totalWonRevenue)} icon="🏆" color="purple" subtitle="Doanh thu deals thành công" />
+        <ReportCard title="Status Summary" value={statusSummary.reduce((sum, item) => sum + item.count, 0)} icon="📊" color="blue" subtitle="Tình trạng deals hiện tại" />
+      </div>
 
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={mockChart}>
-              <XAxis dataKey="name" />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="value"
-                strokeWidth={3}
-              />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+        <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-800 mb-3">Revenue Trend</h3>
+          <p className="text-slate-500 text-sm mb-5">Xem doanh thu theo tháng của người dùng hiện tại.</p>
+
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart data={monthlyReport.length ? monthlyReport : mockChart} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} />
+              <Tooltip formatter={(value) => formatCurrency(value)} />
+              <Line type="monotone" dataKey="revenue" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        {/* ACTIVITY */}
-        <div className="bg-white p-6 rounded-2xl shadow border">
-          <h3 className="font-semibold mb-4 text-slate-700">
-            Recent Activity
-          </h3>
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-800 mb-3">Deal Status</h3>
+          <p className="text-slate-500 text-sm mb-5">Tổng quan trạng thái deals hiện tại.</p>
 
-          <div className="space-y-4">
-            {mockActivity.map((item, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-bold">
-                  {item.name[0]}
-                </div>
-                <div className="text-sm">
-                  <p className="text-slate-700">{item.text}</p>
-                  <p className="text-xs text-slate-400">{item.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ResponsiveContainer width="100%" height={320}>
+            <BarChart data={statusSummary} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="status" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="count" fill="#22c55e" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-white rounded-2xl shadow border p-6">
-        <h3 className="font-semibold text-slate-700 mb-4">
-          Recent Deals
-        </h3>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-8">
+        <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-800 mb-3">Monthly Report</h3>
+          <p className="text-slate-500 text-sm mb-5">Số liệu theo tháng cho Admin/Staff.</p>
 
-        {!recentDeals.length ? (
-          <p className="text-gray-400 text-center py-10">
-            No recent deals
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              
-              <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
-                <tr>
-                  <th className="py-3 px-2">ID</th>
-                  <th>Customer</th>
-                  <th>Price</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y">
-                {recentDeals.map((d) => (
-                  <tr
-                    key={d.id}
-                    className="hover:bg-slate-50 transition"
-                  >
-                    <td className="py-3 px-2 font-medium">
-                      #{d.id}
-                    </td>
-
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-xs font-bold text-indigo-600">
-                          {(d.customerName || "N")[0]}
-                        </div>
-                        {d.customerName ||
-                          d.customer?.name ||
-                          d.customer?.fullName ||
-                          "N/A"}
-                      </div>
-                    </td>
-
-                    <td className="font-semibold text-slate-800">
-                      {formatCurrency(d.price ?? d.amount)}
-                    </td>
-
-                    <td>
-                      <StatusBadge status={d.status} />
-                    </td>
+          {!monthlyReport.length ? (
+            <p className="text-gray-400 text-center py-10">Không có dữ liệu báo cáo tháng</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                  <tr>
+                    <th className="py-3 px-2 text-left">Month</th>
+                    <th className="text-right">Deals</th>
+                    <th className="text-right">Revenue</th>
+                    <th className="text-right">Won Deals</th>
                   </tr>
-                ))}
-              </tbody>
+                </thead>
+                <tbody className="divide-y">
+                  {monthlyReport.map((item) => (
+                    <tr key={item.month} className="hover:bg-slate-50 transition-colors duration-150">
+                      <td className="py-3 px-2 font-medium text-slate-700">{item.month}</td>
+                      <td className="py-3 px-2 text-right text-slate-600">{item.deals}</td>
+                      <td className="py-3 px-2 text-right font-semibold text-slate-800">{formatCurrency(item.revenue)}</td>
+                      <td className="py-3 px-2 text-right text-slate-600">{item.wonDeals}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
-            </table>
-          </div>
-        )}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-800 mb-3">Recent Deals</h3>
+          <p className="text-slate-500 text-sm mb-5">Danh sách deal mới nhất theo quyền hiện tại.</p>
+
+          {!recentDeals.length ? (
+            <p className="text-gray-400 text-center py-10">No recent deals</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                  <tr>
+                    <th className="py-3 px-2">ID</th>
+                    <th>Customer</th>
+                    <th className="text-right">Price</th>
+                    <th className="text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {recentDeals.map((d) => (
+                    <tr key={d.id} className="hover:bg-slate-50 transition-colors duration-150">
+                      <td className="py-3 px-2 font-medium text-slate-700">#{d.id}</td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-xs font-bold text-indigo-600">
+                            {(d.customerName || "N")[0]}
+                          </div>
+                          {d.customerName || "N/A"}
+                        </div>
+                      </td>
+                      <td className="text-right font-semibold">{formatCurrency(d.amount)}</td>
+                      <td className="text-right">
+                        <StatusBadge status={d.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -208,7 +216,7 @@ function StatCard({ title, value, icon, color = "blue" }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow border p-6 hover:shadow-xl transition hover:scale-[1.02]">
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm transition duration-200 hover:shadow-lg hover:-translate-y-0.5">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-slate-500 text-sm">{title}</p>
@@ -225,10 +233,33 @@ function StatCard({ title, value, icon, color = "blue" }) {
   );
 }
 
+function ReportCard({ title, value, icon, color = "blue", subtitle }) {
+  const colorClasses = {
+    blue: "from-blue-500 to-blue-600",
+    green: "from-green-500 to-green-600",
+    purple: "from-purple-500 to-purple-600",
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm transition duration-200 hover:shadow-lg hover:-translate-y-0.5">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-slate-500 text-sm">{title}</p>
+          <h2 className="text-3xl font-bold text-slate-800 mt-1">{value}</h2>
+          <p className="text-slate-400 text-xs mt-2">{subtitle}</p>
+        </div>
+        <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${colorClasses[color]} flex items-center justify-center text-white text-xl`}>
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatusBadge({ status }) {
   const s = String(status ?? "").toLowerCase();
 
-  let style = "px-2 py-1 text-xs font-medium rounded-md ";
+  let style = "inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full tracking-wide ";
 
   if (s === "completed" || s === "won") {
     style += "bg-green-100 text-green-600";
@@ -263,15 +294,10 @@ const formatCurrency = (value) => {
 //
 
 const mockChart = [
-  { name: "Mon", value: 400 },
-  { name: "Tue", value: 800 },
-  { name: "Wed", value: 600 },
-  { name: "Thu", value: 1200 },
-  { name: "Fri", value: 900 },
-];
-
-const mockActivity = [
-  { name: "John", text: "Created new deal", time: "2 mins ago" },
-  { name: "Anna", text: "Closed deal $1200", time: "10 mins ago" },
-  { name: "Mike", text: "Updated property", time: "1 hour ago" },
+  { month: "Jan", revenue: 3200 },
+  { month: "Feb", revenue: 5100 },
+  { month: "Mar", revenue: 4300 },
+  { month: "Apr", revenue: 6200 },
+  { month: "May", revenue: 5400 },
+  { month: "Jun", revenue: 7100 },
 ];

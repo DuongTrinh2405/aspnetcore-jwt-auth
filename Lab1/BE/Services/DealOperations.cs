@@ -60,7 +60,7 @@ namespace Lab1.Services
                     .FirstOrDefaultAsync(e => e.UserId == userId);
 
                 if (employee == null || deal.EmployeeId != employee.Id)
-                    throw new Exception("Unauthorized");
+                    return null;
             }
 
             return deal;
@@ -90,8 +90,11 @@ namespace Lab1.Services
         }
 
         // ✅ CREATE
-        public async Task<Deal> CreateAsync(CreateDealDto dto, string userId)
+        public async Task<Deal> CreateAsync(CreateDealDto dto, string userId, string role)
         {
+            if (role == "Admin")
+                throw new Exception("Admin cannot create deals");
+
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(e => e.UserId == userId);
 
@@ -107,20 +110,12 @@ namespace Lab1.Services
                 CustomerId = dto.CustomerId,
                 PropertyId = dto.PropertyId,
                 ExpectedCloseDate = dto.ExpectedCloseDate,
-                ClosedDate = dto.ClosedDate,
+                ClosedDate = null,
                 Notes = dto.Notes,
                 EmployeeId = employee.Id,
                 CreatedDate = DateTime.UtcNow
             };
 
-            // 🔥 BUSINESS RULE
-            var exists = await _context.Deals
-                .AnyAsync(d => d.CustomerId == deal.CustomerId && d.Status == DealStatus.Open);
-
-            if (exists)
-                throw new Exception("Customer already has active deal");
-
-            // 🔥 AUTO LOGIC
             if (deal.Stage == DealStage.Won)
                 deal.Status = DealStatus.Won;
 
@@ -130,7 +125,13 @@ namespace Lab1.Services
             _context.Deals.Add(deal);
             await _context.SaveChangesAsync();
 
-            return deal;
+            var createdDeal = await _context.Deals
+                .Include(d => d.Customer)
+                .Include(d => d.Property)
+                .Include(d => d.Employee)
+                .FirstOrDefaultAsync(d => d.Id == deal.Id);
+
+            return createdDeal!;
         }
 
         // ✅ UPDATE
@@ -139,13 +140,16 @@ namespace Lab1.Services
             var existing = await _context.Deals.FindAsync(id);
             if (existing == null) return false;
 
+            if (role == "Admin")
+                throw new Exception("Admin cannot modify deals");
+
             var employee = await _context.Employees
                 .FirstOrDefaultAsync(e => e.UserId == userId);
 
             if (employee == null)
                 throw new Exception("Employee not found");
 
-            if (role != "Admin" && existing.EmployeeId != employee.Id)
+            if (existing.EmployeeId != employee.Id)
                 throw new Exception("Unauthorized");
 
             existing.Title = dto.Title;
@@ -158,11 +162,10 @@ namespace Lab1.Services
             existing.Notes = dto.Notes;
             existing.UpdatedDate = DateTime.UtcNow;
 
-            // 🔥 AUTO LOGIC
             if (existing.Stage == DealStage.Won)
                 existing.Status = DealStatus.Won;
 
-            if (existing.Status == DealStatus.Won)
+            if (existing.Status == DealStatus.Won && existing.ClosedDate == null)
                 existing.ClosedDate = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -175,31 +178,103 @@ namespace Lab1.Services
             var deal = await _context.Deals.FindAsync(id);
             if (deal == null) return false;
 
-            if (role != "Admin")
-            {
-                var employee = await _context.Employees
-                    .FirstOrDefaultAsync(e => e.UserId == userId);
+            if (role == "Admin")
+                throw new Exception("Admin cannot delete deals");
 
-                if (employee == null || deal.EmployeeId != employee.Id)
-                    throw new Exception("Unauthorized");
-            }
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e => e.UserId == userId);
+
+            if (employee == null || deal.EmployeeId != employee.Id)
+                throw new Exception("Unauthorized");
 
             _context.Deals.Remove(deal);
             await _context.SaveChangesAsync();
             return true;
         }
 
-        // ✅ SEARCH
-        public async Task<IEnumerable<Deal>> SearchAsync(string query, string userId, string role)
+        // 🔥 SEARCH (FIX PAGINATION CHUẨN)
+        public async Task<IEnumerable<Deal>> SearchAsync(
+            string? query,
+            string? stage,
+            string? status,
+            int? employeeId,
+            decimal? minAmount,
+            decimal? maxAmount,
+            string? sortBy,
+            string? sortOrder,
+            int page,
+            int pageSize,
+            string userId,
+            string role)
         {
-            var deals = await GetAllAsync(userId, role);
+            page = page <= 0 ? 1 : page;
+            pageSize = pageSize <= 0 ? 10 : pageSize;
 
-            if (string.IsNullOrEmpty(query))
-                return deals;
+            var deals = _context.Deals.AsQueryable();
 
-            return deals.Where(d =>
-                d.Title.Contains(query, StringComparison.OrdinalIgnoreCase) ||
-                (d.Notes != null && d.Notes.Contains(query, StringComparison.OrdinalIgnoreCase)));
+            if (role != "Admin")
+            {
+                var employee = await _context.Employees
+                    .FirstOrDefaultAsync(e => e.UserId == userId);
+
+                if (employee == null)
+                    return new List<Deal>();
+
+                deals = deals.Where(d => d.EmployeeId == employee.Id);
+            }
+
+            if (!string.IsNullOrEmpty(query))
+            {
+                deals = deals.Where(d =>
+                    d.Title.Contains(query) ||
+                    (d.Notes != null && d.Notes.Contains(query)));
+            }
+
+            if (!string.IsNullOrEmpty(stage) &&
+                Enum.TryParse<DealStage>(stage, true, out var stageEnum))
+            {
+                deals = deals.Where(d => d.Stage == stageEnum);
+            }
+
+            if (!string.IsNullOrEmpty(status) &&
+                Enum.TryParse<DealStatus>(status, true, out var statusEnum))
+            {
+                deals = deals.Where(d => d.Status == statusEnum);
+            }
+
+            if (role == "Admin" && employeeId.HasValue)
+            {
+                deals = deals.Where(d => d.EmployeeId == employeeId);
+            }
+
+            if (minAmount.HasValue)
+                deals = deals.Where(d => d.Amount >= minAmount);
+
+            if (maxAmount.HasValue)
+                deals = deals.Where(d => d.Amount <= maxAmount);
+
+            if (sortBy == "amount")
+            {
+                deals = sortOrder == "desc"
+                    ? deals.OrderByDescending(d => d.Amount)
+                    : deals.OrderBy(d => d.Amount);
+            }
+            else
+            {
+                deals = deals.OrderByDescending(d => d.CreatedDate);
+            }
+
+            // ✅ PAGINATION ĐÚNG
+            deals = deals
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize);
+
+            return await deals
+                .Include(d => d.Customer)
+                .Include(d => d.Property)
+                .Include(d => d.Employee)
+                .AsNoTracking()
+                .ToListAsync();
         }
     }
 }

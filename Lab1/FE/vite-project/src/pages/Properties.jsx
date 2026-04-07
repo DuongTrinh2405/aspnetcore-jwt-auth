@@ -1,53 +1,91 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+
 import {
   getProperties,
   createProperty,
   updateProperty,
   deleteProperty,
-  searchProperties,
 } from "../services/propertyService";
 
 import PropertyTable from "../components/Property/PropertyTable";
 import PropertyForm from "../components/Property/PropertyForm";
 
 function Properties() {
+  const navigate = useNavigate();
+
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
+
+  const [filters, setFilters] = useState({
+    search: "",
+    type: "",
+    status: "",
+    minPrice: "",
+    maxPrice: "",
+  });
+
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [sortOrder, setSortOrder] = useState("");
 
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const fetchProperties = useCallback(async (searchTerm = "") => {
+  // ==============================
+  // FETCH DATA
+  // ==============================
+  const fetchData = useCallback(async (currentPage = 1) => {
     try {
       setLoading(true);
-      let data;
-      if (searchTerm.trim()) {
-        data = await searchProperties(searchTerm.trim());
-      } else {
-        data = await getProperties();
-      }
-      setProperties(data);
+
+      const res = await getProperties({
+        ...filters,
+        status: filters.status !== "" ? Number(filters.status) : undefined,
+        page: currentPage,
+        pageSize,
+        sortBy: sortOrder ? "price" : undefined,
+        sortOrder: sortOrder || undefined,
+      });
+
+      setProperties(res.data || []);
+
+      const total = res.total || 0;
+      setTotalPages(Math.ceil(total / pageSize));
+
+      setPage(currentPage);
     } catch (err) {
       console.error(err);
       alert("Lỗi khi tải properties");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters, sortOrder, pageSize]);
 
+  // ==============================
+  // LOAD
+  // ==============================
   useEffect(() => {
-    fetchProperties();
-  }, [fetchProperties]);
-
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      fetchProperties(search);
+    const debounce = setTimeout(() => {
+      fetchData(page);
     }, 300);
 
-    return () => clearTimeout(debounceTimer);
-  }, [search, fetchProperties]);
+    return () => clearTimeout(debounce);
+  }, [fetchData, page]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [filters]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [sortOrder]);
+
+  // ==============================
+  // CRUD
+  // ==============================
   const handleSubmit = async (formData) => {
     try {
       if (editing) {
@@ -58,8 +96,8 @@ function Properties() {
 
       setIsOpen(false);
       setEditing(null);
-      await fetchProperties(search);
-    } catch (err) {
+      fetchData(page);
+    } catch {
       alert("Lỗi khi lưu property");
     }
   };
@@ -69,8 +107,8 @@ function Properties() {
 
     try {
       await deleteProperty(id);
-      await fetchProperties(search);
-    } catch (err) {
+      fetchData(page);
+    } catch {
       alert("Lỗi khi xoá");
     }
   };
@@ -85,53 +123,139 @@ function Properties() {
     setIsOpen(true);
   };
 
+  const handleViewUser = (employeeId) => {
+    if (!employeeId) return;
+    navigate(`/employees/${employeeId}`);
+  };
+
+  // ==============================
+  // PAGINATION UI
+  // ==============================
+  const renderPagination = () => {
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+      .slice(Math.max(0, page - 3), page + 2);
+
+    return (
+      <div className="flex justify-center items-center gap-2 mt-6">
+        <button
+          disabled={page === 1}
+          onClick={() => setPage(page - 1)}
+          className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+        >
+          ←
+        </button>
+
+        {pages.map((p) => (
+          <button
+            key={p}
+            onClick={() => setPage(p)}
+            className={`px-3 py-1 rounded border ${
+              p === page
+                ? "bg-blue-600 text-white"
+                : "hover:bg-gray-100"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+
+        <button
+          disabled={page === totalPages}
+          onClick={() => setPage(page + 1)}
+          className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+        >
+          →
+        </button>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="app-page space-y-6">
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Properties</h2>
-          <p className="text-slate-600 mt-1">Quản lý bất động sản</p>
+          <h2 className="text-2xl font-bold text-slate-800">
+            Properties
+          </h2>
+          <p className="text-slate-600 mt-1">
+            Quản lý bất động sản
+          </p>
         </div>
 
         <button
           onClick={handleCreate}
-          className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-2"
+          className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
           Thêm property
         </button>
       </div>
 
-      {/* SEARCH */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <input
-            type="text"
-            placeholder="Tìm kiếm property..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 placeholder-slate-400"
-          />
+      {/* FILTER (🔥 FIX UI) */}
+      <div className="bg-white rounded-xl shadow-sm border p-6 flex flex-wrap items-center gap-4">
+        {/* SEARCH */}
+        <input
+          type="text"
+          placeholder="Tìm kiếm property..."
+          value={filters.search}
+          onChange={(e) =>
+            setFilters({ ...filters, search: e.target.value })
+          }
+          className="flex-1 min-w-[250px] border px-3 py-2 rounded"
+        />
+
+        {/* STATUS */}
+        <div className="flex flex-col">
+          <span className="text-xs text-gray-500 mb-1">Status</span>
+          <select
+            value={filters.status}
+            onChange={(e) =>
+              setFilters({ ...filters, status: e.target.value })
+            }
+            className="border px-3 py-2 rounded w-[160px]"
+          >
+            <option value="">All Status</option>
+            <option value="0">Available</option>
+            <option value="1">Reserved</option>
+            <option value="2">Sold</option>
+            <option value="3">Rented</option>
+            <option value="4">Negotiation</option>
+            <option value="5">Off Market</option>
+          </select>
+        </div>
+
+        {/* SORT PRICE */}
+        <div className="flex flex-col">
+          <span className="text-xs text-gray-500 mb-1">Sort Price</span>
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="border px-3 py-2 rounded w-[160px]"
+          >
+            <option value="">Mặc định</option>
+            <option value="asc">Giá tăng dần</option>
+            <option value="desc">Giá giảm dần</option>
+          </select>
         </div>
       </div>
 
-      {/* TABLE CARD */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* TABLE */}
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <PropertyTable
           data={properties}
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onViewUser={handleViewUser}
         />
       </div>
+
+      {/* PAGINATION */}
+      {renderPagination()}
+
+      <p className="text-sm text-gray-500 text-center">
+        Trang {page} / {totalPages}
+      </p>
 
       {/* MODAL */}
       {isOpen && (

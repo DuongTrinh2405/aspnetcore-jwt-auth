@@ -23,7 +23,7 @@ function Interactions() {
   }, []);
 
   return (
-    <div>
+    <div className="app-page min-h-screen">
       <h2>Interactions</h2>
 
       <InteractionForm onSuccess={loadData} />

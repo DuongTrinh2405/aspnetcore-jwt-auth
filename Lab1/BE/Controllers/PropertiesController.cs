@@ -20,31 +20,40 @@ namespace Lab1.Controllers
             _service = service;
         }
 
-        // ✅ GET ALL
+        // ==============================
+        // GET ALL
+        // ==============================
         [HttpGet]
         public async Task<IActionResult> GetAll(
             int page = 1,
             int pageSize = 10,
+            string? search = null,
             PropertyType? type = null,
             PropertyStatus? status = null,
             decimal? minPrice = null,
-            decimal? maxPrice = null)
+            decimal? maxPrice = null,
+            string? sortBy = null,
+            string? sortOrder = null
+        )
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
-                return Unauthorized(new { success = false, message = "Invalid token" });
+                return Unauthorized(new { success = false });
 
             var (data, total) = await _service.GetAllAsync(
                 userId,
                 role,
                 page,
                 pageSize,
+                search,
                 type,
                 status,
                 minPrice,
-                maxPrice
+                maxPrice,
+                sortBy,
+                sortOrder
             );
 
             return Ok(new
@@ -53,11 +62,13 @@ namespace Lab1.Controllers
                 total,
                 page,
                 pageSize,
-                data = data.Select(MapToResponseDto)
+                data // 🔥 KHÔNG MAP NỮA
             });
         }
 
-        // ✅ GET BY ID
+        // ==============================
+        // GET BY ID
+        // ==============================
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
@@ -75,11 +86,13 @@ namespace Lab1.Controllers
             return Ok(new
             {
                 success = true,
-                data = MapToResponseDto(property)
+                data = property // 🔥 DTO luôn
             });
         }
 
-        // ✅ SEARCH
+        // ==============================
+        // SEARCH
+        // ==============================
         [HttpGet("search")]
         public async Task<IActionResult> Search(string query, int page = 1, int pageSize = 10)
         {
@@ -87,23 +100,29 @@ namespace Lab1.Controllers
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
-                return Unauthorized(new { success = false, message = "Invalid token" });
+                return Unauthorized(new { success = false });
 
             var data = await _service.SearchAsync(query, userId, role);
 
+            var total = data.Count();
+
             var paged = data
                 .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(MapToResponseDto);
+                .Take(pageSize);
 
             return Ok(new
             {
                 success = true,
-                data = paged
+                total,
+                page,
+                pageSize,
+                data = paged // 🔥 KHÔNG MAP
             });
         }
 
-        // ✅ CREATE
+        // ==============================
+        // CREATE
+        // ==============================
         [HttpPost]
         public async Task<IActionResult> Create(CreatePropertyDto dto)
         {
@@ -124,22 +143,37 @@ namespace Lab1.Controllers
                 Address = dto.Address,
                 Type = dto.Type,
                 Status = dto.Status,
-                IsSold = dto.IsSold,
-
-                // ✅ FIX ẢNH
-                ImageUrl = dto.ImageUrl
+                Images = dto.ImageUrls?.Select(url => new PropertyImage
+                {
+                    ImageUrl = url
+                }).ToList() ?? new List<PropertyImage>()
             };
 
             var result = await _service.CreateAsync(property, userId);
 
+            // 🔥 Return full property data as DTO
             return CreatedAtAction(nameof(Get), new { id = result.Id }, new
             {
                 success = true,
-                data = MapToResponseDto(result)
+                data = new
+                {
+                    id = result.Id,
+                    title = result.Title,
+                    description = result.Description,
+                    price = result.Price,
+                    area = result.Area,
+                    address = result.Address,
+                    type = result.Type,
+                    status = result.Status,
+                    imageUrls = result.Images?.Select(i => i.ImageUrl).ToList() ?? new List<string>(),
+                    createdDate = result.CreatedDate
+                }
             });
         }
 
-        // ✅ UPDATE
+        // ==============================
+        // UPDATE
+        // ==============================
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, UpdatePropertyDto dto)
         {
@@ -160,10 +194,10 @@ namespace Lab1.Controllers
                 Address = dto.Address,
                 Type = dto.Type,
                 Status = dto.Status,
-                IsSold = dto.IsSold,
-
-                // ✅ FIX ẢNH
-                ImageUrl = dto.ImageUrl
+                Images = dto.ImageUrls?.Select(url => new PropertyImage
+                {
+                    ImageUrl = url
+                }).ToList() ?? new List<PropertyImage>()
             };
 
             try
@@ -181,7 +215,9 @@ namespace Lab1.Controllers
             }
         }
 
-        // ✅ DELETE
+        // ==============================
+        // DELETE
+        // ==============================
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -204,30 +240,6 @@ namespace Lab1.Controllers
             {
                 return Forbid();
             }
-        }
-
-        // ✅ MAP DTO (ĐÃ FIX IMAGE)
-        private static PropertyResponseDto MapToResponseDto(Property property)
-        {
-            return new PropertyResponseDto
-            {
-                Id = property.Id,
-                Title = property.Title,
-                Description = property.Description,
-                Price = property.Price,
-                Area = property.Area,
-                Address = property.Address,
-                Type = property.Type,
-                Status = property.Status,
-                IsSold = property.IsSold,
-                EmployeeId = property.EmployeeId,
-                CustomerId = property.CustomerId,
-                CreatedDate = property.CreatedDate,
-                UpdatedDate = property.UpdatedDate,
-
-                // ✅ FIX ẢNH
-                ImageUrl = property.ImageUrl
-            };
         }
     }
 }

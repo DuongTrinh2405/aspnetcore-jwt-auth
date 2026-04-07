@@ -19,14 +19,13 @@ namespace Lab1.Controllers
             _service = service;
         }
 
-        // ✅ GET ALL
+        // ✅ GET ALL (GIỮ NGUYÊN - vẫn paging FE)
         [HttpGet]
         public async Task<IActionResult> GetAll(int page = 1, int pageSize = 10)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            // 🔥 FIX
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
                 return Unauthorized(new { success = false });
 
@@ -51,7 +50,6 @@ namespace Lab1.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            // 🔥 FIX
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
                 return Unauthorized(new { success = false });
 
@@ -67,48 +65,38 @@ namespace Lab1.Controllers
             });
         }
 
-        // ✅ GET BY CUSTOMER
-        [HttpGet("customer/{customerId}")]
-        public async Task<IActionResult> GetByCustomer(int customerId)
+        // 🔥 SEARCH (FIX PAGINATION ĐÚNG)
+        [HttpGet("search")]
+        public async Task<IActionResult> Search(
+            string? query,
+            string? stage,
+            string? status,
+            int? employeeId,
+            decimal? minAmount,
+            decimal? maxAmount,
+            string? sortBy,
+            string? sortOrder,
+            int page = 1,
+            int pageSize = 10)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            // 🔥 FIX
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
                 return Unauthorized(new { success = false });
 
-            var data = await _service.GetByCustomerIdAsync(customerId, userId, role);
+            var data = await _service.SearchAsync(
+                query, stage, status, employeeId,
+                minAmount, maxAmount, sortBy, sortOrder,
+                page, pageSize, // ✅ truyền xuống service
+                userId, role
+            );
 
+            // ❌ XOÁ paging ở controller
             return Ok(new
             {
                 success = true,
                 data = data.Select(MapToResponseDto)
-            });
-        }
-
-        // ✅ SEARCH
-        [HttpGet("search")]
-        public async Task<IActionResult> Search(string query, int page = 1, int pageSize = 10)
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var role = User.FindFirst(ClaimTypes.Role)?.Value;
-
-            // 🔥 FIX
-            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
-                return Unauthorized(new { success = false });
-
-            var data = await _service.SearchAsync(query, userId, role);
-
-            var paged = data
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(MapToResponseDto);
-
-            return Ok(new
-            {
-                success = true,
-                data = paged
             });
         }
 
@@ -120,18 +108,29 @@ namespace Lab1.Controllers
                 return BadRequest(ModelState);
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            // 🔥 FIX
-            if (string.IsNullOrEmpty(userId))
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
                 return Unauthorized(new { success = false });
 
-            var created = await _service.CreateAsync(dto, userId);
-
-            return Ok(new
+            try
             {
-                success = true,
-                data = MapToResponseDto(created)
-            });
+                var created = await _service.CreateAsync(dto, userId, role);
+
+                return Ok(new
+                {
+                    success = true,
+                    data = MapToResponseDto(created)
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
         }
 
         // ✅ UPDATE
@@ -144,16 +143,26 @@ namespace Lab1.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            // 🔥 FIX
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
                 return Unauthorized(new { success = false });
 
-            var updated = await _service.UpdateAsync(id, dto, userId, role);
+            try
+            {
+                var updated = await _service.UpdateAsync(id, dto, userId, role);
 
-            if (!updated)
-                return NotFound(new { success = false });
+                if (!updated)
+                    return NotFound(new { success = false });
 
-            return Ok(new { success = true });
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
         }
 
         // ✅ DELETE
@@ -163,16 +172,26 @@ namespace Lab1.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var role = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            // 🔥 FIX
             if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role))
                 return Unauthorized(new { success = false });
 
-            var deleted = await _service.DeleteAsync(id, userId, role);
+            try
+            {
+                var deleted = await _service.DeleteAsync(id, userId, role);
 
-            if (!deleted)
-                return NotFound(new { success = false });
+                if (!deleted)
+                    return NotFound(new { success = false });
 
-            return Ok(new { success = true });
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
         }
 
         // ✅ MAPPING
@@ -183,10 +202,12 @@ namespace Lab1.Controllers
                 Id = deal.Id,
                 Title = deal.Title,
                 Amount = deal.Amount,
-                Stage = deal.Stage.ToString(),
-                Status = deal.Status.ToString(),
+                Stage = (int)deal.Stage,
+                Status = (int)deal.Status,
                 CustomerId = deal.CustomerId,
+                CustomerName = deal.Customer?.Name,
                 PropertyId = deal.PropertyId,
+                PropertyTitle = deal.Property?.Title,
                 EmployeeId = deal.EmployeeId,
                 ExpectedCloseDate = deal.ExpectedCloseDate,
                 ClosedDate = deal.ClosedDate,

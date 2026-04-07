@@ -4,7 +4,7 @@ import Loading from "../common/Loading";
 function EmployeeTable({ data = [], loading, onDelete, onEdit }) {
 
   // ==============================
-  // 🔥 GET ROLE (SAFE + OPTIMIZED)
+  // 🔥 GET ROLE (SAFE)
   // ==============================
   const role = useMemo(() => {
     try {
@@ -45,8 +45,18 @@ function EmployeeTable({ data = [], loading, onDelete, onEdit }) {
   if (!data.length) {
     return (
       <div className="text-center py-12">
-        <svg className="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+        <svg
+          className="mx-auto h-12 w-12 text-slate-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1}
+            d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+          />
         </svg>
         <p className="mt-4 text-slate-500">Không có nhân viên nào</p>
       </div>
@@ -123,24 +133,25 @@ function EmployeeTable({ data = [], loading, onDelete, onEdit }) {
                 {formatDate(e.createdDate)}
               </td>
 
+              {/* ✅ FIX KHÔNG DÙNG && */}
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                {onEdit && (
+                {onEdit ? (
                   <button
                     onClick={() => onEdit(e)}
                     className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
                   >
                     Edit
                   </button>
-                )}
+                ) : null}
 
-                {isAdmin && (
+                {isAdmin ? (
                   <button
                     onClick={() => onDelete(e.id)}
                     className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
                   >
                     Delete
                   </button>
-                )}
+                ) : null}
               </td>
             </tr>
           ))}

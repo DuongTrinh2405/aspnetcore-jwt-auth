@@ -5,6 +5,7 @@ import {
   updateCustomer,
   deleteCustomer,
 } from "../services/customerService";
+import api from "../services/api";
 
 import CustomerTable from "../components/Customer/CustomerTable";
 import CustomerForm from "../components/Customer/CustomerForm";
@@ -22,45 +23,61 @@ function Customers() {
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  // 🔥 thêm user để check role (KHÔNG phá UI)
+  const [employeeDetail, setEmployeeDetail] = useState(null);
+
+  // 🔥 PAGINATION
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-  const fetchCustomers = useCallback(async (params = {}) => {
+  // ==============================
+  // FETCH
+  // ==============================
+  const fetchCustomers = useCallback(async (params = {}, currentPage = 1) => {
     try {
       setLoading(true);
 
       const res = await getCustomers({
         keyword: params.keyword || "",
         status: params.status !== "" ? Number(params.status) : undefined,
-        page: 1,
-        pageSize: 10,
+        page: currentPage,
+        pageSize: pageSize,
       });
 
       setCustomers(res.data);
+      setTotalPages(res.totalPages || 1);
+      setPage(currentPage);
     } catch (err) {
       console.error(err);
       alert(err?.response?.data?.message || "Lỗi tải dữ liệu");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pageSize]);
 
+  // ==============================
+  // LOAD
+  // ==============================
   useEffect(() => {
-    fetchCustomers(filters);
-  }, [fetchCustomers, filters]);
+    fetchCustomers(filters, page);
+  }, [fetchCustomers, filters, page]);
 
-  // debounce search
+  // 🔥 SEARCH debounce
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchCustomers(filters);
+      fetchCustomers(filters, 1);
     }, 300);
 
     return () => clearTimeout(timer);
   }, [filters.keyword]);
 
+  // ==============================
+  // CRUD
+  // ==============================
   const handleSubmit = async (formData) => {
     try {
-      // 🔥 chặn admin
       if (user.role === "Admin") {
         alert("Admin không được phép tạo/sửa khách hàng");
         return;
@@ -74,7 +91,7 @@ function Customers() {
 
       setIsOpen(false);
       setEditing(null);
-      fetchCustomers(filters);
+      fetchCustomers(filters, page);
     } catch (err) {
       console.error(err);
       alert(err?.response?.data?.message || "Submit lỗi");
@@ -82,7 +99,6 @@ function Customers() {
   };
 
   const handleDelete = async (id) => {
-    // 🔥 chặn admin
     if (user.role === "Admin") {
       alert("Admin không được phép xoá");
       return;
@@ -92,7 +108,7 @@ function Customers() {
 
     try {
       await deleteCustomer(id);
-      fetchCustomers(filters);
+      fetchCustomers(filters, page);
     } catch (err) {
       alert(err?.response?.data?.message || "Xoá lỗi");
     }
@@ -108,28 +124,88 @@ function Customers() {
     setIsOpen(true);
   };
 
+  // ==============================
+  // VIEW EMPLOYEE
+  // ==============================
+  const handleViewEmployee = async (id) => {
+    try {
+      const res = await api.get(`/Employees/${id}`);
+      const data = res.data.data || res.data;
+      setEmployeeDetail(data);
+    } catch (err) {
+      console.error(err);
+      alert("Không load được nhân viên");
+    }
+  };
+
+  // ==============================
+  // PAGINATION UI
+  // ==============================
+  const renderPagination = () => {
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+      .slice(Math.max(0, page - 3), page + 2);
+
+    return (
+      <div className="flex justify-center items-center gap-2 mt-6">
+        <button
+          disabled={page === 1}
+          onClick={() => setPage(page - 1)}
+          className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+        >
+          ←
+        </button>
+
+        {pages.map((p) => (
+          <button
+            key={p}
+            onClick={() => setPage(p)}
+            className={`px-3 py-1 rounded border ${
+              p === page
+                ? "bg-blue-600 text-white"
+                : "hover:bg-gray-100"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+
+        <button
+          disabled={page === totalPages}
+          onClick={() => setPage(page + 1)}
+          className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+        >
+          →
+        </button>
+      </div>
+    );
+  };
+
+  // ==============================
+  // RENDER
+  // ==============================
   return (
-    <div className="space-y-6">
+    <div className="app-page space-y-6">
       {/* HEADER */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Customers</h2>
           <p className="text-slate-600 mt-1">Quản lý khách hàng</p>
         </div>
 
-        {/* 🔥 chỉ ẩn nút, không đổi UI */}
         {user.role !== "Admin" && (
           <button
             onClick={handleCreate}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+            className="app-button-primary"
           >
             + Thêm khách hàng
           </button>
         )}
       </div>
 
-      {/* SEARCH + FILTER */}
-      <div className="bg-white rounded-xl border p-6 flex gap-4">
+      {/* 🔥 SEARCH UI ĐẸP */}
+      <div className="app-card-soft p-6 flex flex-col md:flex-row gap-4 w-full items-stretch">
+        
+        {/* INPUT */}
         <input
           type="text"
           placeholder="Tìm kiếm khách hàng..."
@@ -137,15 +213,21 @@ function Customers() {
           onChange={(e) =>
             setFilters({ ...filters, keyword: e.target.value })
           }
-          className="flex-1 px-3 py-2 border rounded-lg"
+          className="flex-1 w-full min-w-[300px] px-5 py-3 border border-gray-300 
+                     rounded-xl shadow-sm 
+                     text-black bg-white placeholder-gray-400
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 
+                     focus:border-blue-500 transition"
         />
 
+        {/* SELECT */}
         <select
           value={filters.status}
           onChange={(e) =>
             setFilters({ ...filters, status: e.target.value })
           }
-          className="px-3 py-2 border rounded-lg"
+          className="px-5 py-3 border border-gray-300 rounded-xl 
+                     bg-white text-black shadow-sm"
         >
           <option value="">Tất cả trạng thái</option>
           {CUSTOMER_STATUS_OPTIONS.map((s) => (
@@ -155,9 +237,14 @@ function Customers() {
           ))}
         </select>
 
+        {/* RESET */}
         <button
-          onClick={() => setFilters({ keyword: "", status: "" })}
-          className="px-3 py-2 bg-gray-200 rounded-lg"
+          onClick={() => {
+            setFilters({ keyword: "", status: "" });
+            setPage(1);
+          }}
+          className="px-5 py-3 rounded-xl border border-gray-300 
+                     bg-gray-100 hover:bg-gray-200 transition"
         >
           Reset
         </button>
@@ -170,11 +257,19 @@ function Customers() {
           loading={loading}
           onEdit={handleEdit}
           onDelete={handleDelete}
-          user={user} // 🔥 truyền xuống table
+          user={user}
+          onViewEmployee={handleViewEmployee}
         />
       </div>
 
-      {/* MODAL */}
+      {/* PAGINATION */}
+      {renderPagination()}
+
+      <p className="text-sm text-gray-500 text-center">
+        Trang {page} / {totalPages}
+      </p>
+
+      {/* FORM */}
       {isOpen && (
         <CustomerForm
           initialData={editing}
@@ -184,6 +279,27 @@ function Customers() {
             setEditing(null);
           }}
         />
+      )}
+
+      {/* MODAL EMPLOYEE */}
+      {employeeDetail && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl w-[400px] shadow-lg">
+            <h3 className="text-lg font-bold mb-4">Chi tiết nhân viên</h3>
+
+            <p><b>ID:</b> {employeeDetail.id}</p>
+            <p><b>Tên:</b> {employeeDetail.name}</p>
+            <p><b>Email:</b> {employeeDetail.email}</p>
+            <p><b>SĐT:</b> {employeeDetail.phone}</p>
+
+            <button
+              onClick={() => setEmployeeDetail(null)}
+              className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

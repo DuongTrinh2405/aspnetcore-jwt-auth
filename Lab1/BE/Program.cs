@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Security.Claims;
 
 namespace Lab1
 {
@@ -33,20 +34,22 @@ namespace Lab1
             builder.Services.AddScoped<IAppointmentOperations, AppointmentOperations>();
             builder.Services.AddScoped<IDealOperations, DealOperations>();
 
-            // CORS
+            // ===================== CORS (FIX) =====================
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("MyPolicy", policy =>
-                    policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
+                    policy.WithOrigins("http://localhost:5173") // 🔥 FE của bạn
+                          .AllowAnyHeader()
+                          .AllowAnyMethod());
             });
 
-            // ===================== IDENTITY (FIX) =====================
+            // ===================== IDENTITY =====================
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
                 options.Password.RequireDigit = false;
                 options.Password.RequireUppercase = false;
                 options.Password.RequireNonAlphanumeric = false;
-                options.Password.RequireLowercase = false; // ✅ QUAN TRỌNG
+                options.Password.RequireLowercase = false;
                 options.Password.RequiredLength = 6;
             })
             .AddEntityFrameworkStores<Context>()
@@ -90,7 +93,11 @@ namespace Lab1
 
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtOptions.SecretKey))
+                        Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
+
+                    // 🔥 FIX QUAN TRỌNG NHẤT
+                    NameClaimType = ClaimTypes.NameIdentifier,
+                    RoleClaimType = ClaimTypes.Role
                 };
             });
 
@@ -137,7 +144,6 @@ namespace Lab1
                 var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-                // tạo role
                 string[] roles = { "Admin", "Employee" };
 
                 foreach (var role in roles)
@@ -148,7 +154,6 @@ namespace Lab1
                     }
                 }
 
-                // tạo admin
                 var admin = await userManager.FindByNameAsync("admin");
 
                 if (admin == null)

@@ -4,7 +4,7 @@ using Lab1.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using System.IdentityModel.Tokens.Jwt; // 🔥 THÊM
+using System.IdentityModel.Tokens.Jwt;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -18,7 +18,7 @@ public class CustomersController : ControllerBase
         _service = service;
     }
 
-    // 🔥 FIX QUAN TRỌNG: lấy đúng userId + role từ token
+    // 🔥 lấy userId + role
     private (string? userId, string role) GetUser()
     {
         var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
@@ -30,7 +30,7 @@ public class CustomersController : ControllerBase
     }
 
     // =========================
-    // GET ALL
+    // GET ALL (🔥 FIX PAGINATION)
     // =========================
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] CustomerQueryDto query)
@@ -40,15 +40,20 @@ public class CustomersController : ControllerBase
         if (string.IsNullOrEmpty(userId))
             return Unauthorized(new { success = false, message = "Unauthorized" });
 
-        var (data, total) = await _service.GetAllAsync(query, userId, role);
+        // ✅ FIX: nhận page + pageSize chuẩn từ service
+        var (data, total, page, pageSize) = await _service.GetAllAsync(query, userId, role);
+
+        // ✅ FIX: thêm totalPages
+        var totalPages = (int)Math.Ceiling((double)total / pageSize);
 
         return Ok(new
         {
             success = true,
             data = data.Select(MapToResponseDto),
             total,
-            page = query.Page,
-            pageSize = query.PageSize
+            page,
+            pageSize,
+            totalPages
         });
     }
 

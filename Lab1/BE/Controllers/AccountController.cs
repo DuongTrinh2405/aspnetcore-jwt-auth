@@ -48,7 +48,6 @@ namespace Lab1.Controllers
 
             try
             {
-                // ✅ FIX EF CORE (KHÔNG dùng StringComparison)
                 var inputLower = input.ToLower();
 
                 var user = await userManager.Users
@@ -66,7 +65,6 @@ namespace Lab1.Controllers
                     });
                 }
 
-                // ✅ CHECK PASSWORD
                 var valid = await userManager.CheckPasswordAsync(user, password);
 
                 if (!valid)
@@ -88,12 +86,11 @@ namespace Lab1.Controllers
                 {
                     success = true,
                     token,
-                    expired = DateTime.UtcNow.AddHours(1),
 
                     user = new
                     {
                         id = user.Id,
-                        name = user.UserName,
+                        userName = user.UserName, // 🔥 FIX QUAN TRỌNG
                         email = user.Email,
                         role = roles.FirstOrDefault()
                     }
@@ -103,7 +100,6 @@ namespace Lab1.Controllers
             {
                 logger.LogError(ex, "Login error");
 
-                // ✅ TRẢ LỖI THẬT ĐỂ DEBUG
                 return StatusCode(500, new
                 {
                     success = false,

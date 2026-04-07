@@ -12,6 +12,7 @@ namespace Lab1.DTO
         [Range(0, double.MaxValue)]
         public decimal Amount { get; set; }
 
+        // ✅ Giữ enum để BE tự bind từ number
         [Required]
         public DealStage Stage { get; set; } = DealStage.Prospect;
 
@@ -41,6 +42,7 @@ namespace Lab1.DTO
         [Range(0, double.MaxValue)]
         public decimal Amount { get; set; }
 
+        // ✅ Giữ enum
         [Required]
         public DealStage Stage { get; set; }
 
@@ -69,14 +71,18 @@ namespace Lab1.DTO
 
         public decimal Amount { get; set; }
 
-        // 👉 giữ string để frontend dễ dùng
-        public string Stage { get; set; } = string.Empty;
+        // 🔥 FIX QUAN TRỌNG NHẤT: string -> int
+        public int Stage { get; set; }
 
-        public string Status { get; set; } = string.Empty;
+        public int Status { get; set; }
 
         public int CustomerId { get; set; }
 
+        public string? CustomerName { get; set; }
+
         public int? PropertyId { get; set; }
+
+        public string? PropertyTitle { get; set; }
 
         public int? EmployeeId { get; set; }
 

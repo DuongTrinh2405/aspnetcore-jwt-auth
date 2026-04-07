@@ -5,8 +5,8 @@ namespace Lab1.Services.Interfaces
 {
     public interface ICustomerOperations
     {
-        // ✅ GET ALL + SEARCH + FILTER + PAGINATION
-        Task<(IEnumerable<Customer> Data, int Total)> GetAllAsync(
+        // ✅ FIX: thêm Page + PageSize
+        Task<(IEnumerable<Customer> Data, int Total, int Page, int PageSize)> GetAllAsync(
             CustomerQueryDto query,
             string userId,
             string role

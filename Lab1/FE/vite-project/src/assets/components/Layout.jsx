@@ -2,12 +2,12 @@ import Sidebar from "./Sidebar";
 
 export default function Layout({ children }) {
   return (
-    <div style={{ display: "flex" }}>
+    <div className="app-shell">
       <Sidebar />
 
-      <div style={{ flex: 1, padding: "20px" }}>
+      <main className="app-shell-content">
         {children}
-      </div>
+      </main>
     </div>
   );
 }

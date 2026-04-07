@@ -3,9 +3,10 @@ import {
   DEAL_STAGE_OPTIONS,
   DEAL_STATUS_OPTIONS,
 } from "../../utils/dealConstants";
+
 import customerService from "../../services/customerService";
 import propertyService from "../../services/propertyService";
-import employeeService from "../../services/employeeService";
+import { formStyles } from "../../styles/formStyles";
 
 function DealForm({ initialData, onSubmit, onClose }) {
   const [form, setForm] = useState({
@@ -22,6 +23,8 @@ function DealForm({ initialData, onSubmit, onClose }) {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  const isEdit = !!initialData;
+
   useEffect(() => {
     fetchCustomers();
     fetchProperties();
@@ -31,43 +34,44 @@ function DealForm({ initialData, onSubmit, onClose }) {
     if (initialData) {
       setForm({
         ...initialData,
-        stage: Number(initialData.stage),
-        status: Number(initialData.status),
+        stage: Number(initialData.stage ?? 0),
+        status: Number(initialData.status ?? 0),
+        customerId: initialData.customerId || "",
+        propertyId: initialData.propertyId || "",
       });
     }
   }, [initialData]);
 
   const fetchCustomers = async () => {
-    const data = await customerService.getCustomers();
-    setCustomers(data || []);
+    try {
+      const data = await customerService.getCustomers();
+      setCustomers(Array.isArray(data) ? data : data?.data || []);
+    } catch {
+      setCustomers([]);
+    }
   };
 
   const fetchProperties = async () => {
-    const data = await propertyService.getProperties();
-    setProperties(data || []);
+    try {
+      const data = await propertyService.getProperties();
+      setProperties(Array.isArray(data) ? data : data?.data || []);
+    } catch {
+      setProperties([]);
+    }
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm({ ...form, [name]: value });
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validation
-    if (!form.title.trim()) {
-      alert("Vui lòng nhập tiêu đề");
-      return;
-    }
-    if (!form.amount || form.amount <= 0) {
-      alert("Vui lòng nhập giá hợp lệ");
-      return;
-    }
-    if (!form.customerId) {
-      alert("Vui lòng chọn khách hàng");
-      return;
-    }
+    if (!form.title.trim()) return alert("Nhập tiêu đề");
+    if (!form.amount || Number(form.amount) <= 0)
+      return alert("Giá không hợp lệ");
+    if (!form.customerId) return alert("Chọn khách hàng");
 
     const payload = {
       ...form,
@@ -80,62 +84,78 @@ function DealForm({ initialData, onSubmit, onClose }) {
         : null,
     };
 
-    setLoading(true);
     try {
+      setLoading(true);
       await onSubmit(payload);
-    } catch (error) {
-      console.error("Submit error:", error);
-      alert("Lỗi khi lưu deal: " + (error.message || "Vui lòng thử lại"));
+    } catch (err) {
+      alert(err?.message || "Lỗi khi lưu");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <h2 style={styles.title}>
-          {initialData ? "Edit Deal" : "Create Deal"}
-        </h2>
+    <div style={formStyles.overlay}>
+      <div
+        style={{
+          ...formStyles.modal,
+          padding: "24px",
+        }}
+      >
+        <h3 style={formStyles.title}>
+          {isEdit ? "Cập nhật deal" : "Tạo deal"}
+        </h3>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
+        <p style={{ ...formStyles.subtitle, marginBottom: "14px" }}>
+          Nhập thông tin giao dịch
+        </p>
+
+        <form
+          onSubmit={handleSubmit}
+          style={{ ...formStyles.form, gap: "14px" }}
+        >
+          {/* TITLE */}
           <input
             name="title"
             value={form.title}
             onChange={handleChange}
-            placeholder="Property name"
-            style={styles.input}
+            placeholder="Tên deal"
+            style={formStyles.input}
           />
 
-          <input
-            name="amount"
-            value={form.amount}
-            onChange={handleChange}
-            placeholder="Price (VND)"
-            style={styles.input}
-          />
+          {/* AMOUNT + CUSTOMER */}
+          <div style={{ display: "flex", gap: "10px" }}>
+            <input
+              name="amount"
+              value={form.amount}
+              onChange={handleChange}
+              placeholder="Giá"
+              style={{ ...formStyles.input, flex: 1 }}
+            />
 
-          <select
-            name="customerId"
-            value={form.customerId || ""}
-            onChange={handleChange}
-            style={styles.input}
-          >
-            <option value="">Select customer</option>
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            <select
+              name="customerId"
+              value={form.customerId}
+              onChange={handleChange}
+              style={{ ...formStyles.select, flex: 1 }}
+            >
+              <option value="">Khách hàng</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
+          {/* PROPERTY */}
           <select
             name="propertyId"
-            value={form.propertyId || ""}
+            value={form.propertyId}
             onChange={handleChange}
-            style={styles.input}
+            style={formStyles.select}
           >
-            <option value="">Select property</option>
+            <option value="">Bất động sản</option>
             {properties.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.title}
@@ -143,54 +163,70 @@ function DealForm({ initialData, onSubmit, onClose }) {
             ))}
           </select>
 
-          <select
-            name="stage"
-            value={form.stage}
-            onChange={handleChange}
-            style={styles.input}
-          >
-            {DEAL_STAGE_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+          {/* STAGE + STATUS */}
+          <div style={{ display: "flex", gap: "10px" }}>
+            <select
+              name="stage"
+              value={form.stage}
+              onChange={handleChange}
+              style={{ ...formStyles.select, flex: 1 }}
+            >
+              {DEAL_STAGE_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
 
-          <select
-            name="status"
-            value={form.status}
-            onChange={handleChange}
-            style={styles.input}
-          >
-            {DEAL_STATUS_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+            <select
+              name="status"
+              value={form.status}
+              onChange={handleChange}
+              style={{ ...formStyles.select, flex: 1 }}
+            >
+              {DEAL_STATUS_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
+          {/* NOTES */}
           <textarea
             name="notes"
             value={form.notes}
             onChange={handleChange}
-            placeholder="Notes..."
-            style={{ ...styles.input, height: 80 }}
+            placeholder="Ghi chú..."
+            style={{
+              ...formStyles.textarea,
+              minHeight: "90px",
+            }}
           />
 
-          <div style={styles.actions}>
+          {/* ACTIONS */}
+          <div style={formStyles.actions}>
             <button
               type="button"
               onClick={onClose}
-              style={{ ...styles.button, background: "#9ca3af" }}
+              style={{
+                ...formStyles.btn,
+                ...formStyles.btnSecondary,
+              }}
             >
-              Cancel
+              Huỷ
             </button>
 
             <button
               type="submit"
-              style={{ ...styles.button, background: "#3b82f6" }}
+              disabled={loading}
+              style={{
+                ...formStyles.btn,
+                ...formStyles.btnPrimary,
+                ...(loading ? formStyles.btnDisabled : {}),
+              }}
             >
-              {loading ? "Saving..." : "Save"}
+              {loading ? "Đang lưu..." : "Lưu"}
             </button>
           </div>
         </form>
@@ -200,54 +236,3 @@ function DealForm({ initialData, onSubmit, onClose }) {
 }
 
 export default DealForm;
-
-const styles = {
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.4)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  modal: {
-    background: "#fff",
-    padding: "24px",
-    borderRadius: "16px",
-    width: "420px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-  },
-
-  title: {
-    marginBottom: "16px",
-  },
-
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
-  },
-
-  input: {
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #e5e7eb",
-    fontSize: "14px",
-  },
-
-  actions: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "10px",
-    marginTop: "10px",
-  },
-
-  button: {
-    padding: "8px 14px",
-    border: "none",
-    borderRadius: "8px",
-    color: "#fff",
-    cursor: "pointer",
-  },
-};

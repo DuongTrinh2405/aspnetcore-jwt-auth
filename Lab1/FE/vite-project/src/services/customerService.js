@@ -1,17 +1,18 @@
 import api from "./api";
 
 // ==============================
-// GET ALL + SEARCH + FILTER
+// GET ALL + SEARCH + FILTER + PAGINATION
 // ==============================
 export const getCustomers = async (params = {}) => {
   try {
     const res = await api.get("/Customers", { params });
 
     return {
-      data: res.data.data,
-      total: res.data.total,
-      page: res.data.page,
-      pageSize: res.data.pageSize,
+      data: res.data.data || [],
+      total: res.data.total || 0,
+      page: res.data.page || 1,
+      pageSize: res.data.pageSize || 10,
+      totalPages: res.data.totalPages || 1, // 🔥 FIX QUAN TRỌNG
     };
   } catch (error) {
     console.error("Get customers error:", error.response?.data);
@@ -87,11 +88,6 @@ export const deleteCustomer = async (id) => {
     throw error.response?.data || "Lỗi khi xoá khách hàng";
   }
 };
-
-// ==============================
-// ❌ REMOVE SEARCH (KHÔNG DÙNG NỮA)
-// ==============================
-// searchCustomers → đã bị xoá vì BE không còn endpoint này
 
 // ==============================
 // EXPORT

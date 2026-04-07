@@ -7,8 +7,9 @@ import Customers from "./pages/Customers";
 import Properties from "./pages/Properties";
 import Deals from "./pages/Deals";
 import Appointments from "./pages/Appointments";
+import Reports from "./pages/Reports";
 import Employees from "./pages/Employees";
-import Profile from "./pages/profile"; // ✅ THÊM DÒNG NÀY
+import Profile from "./pages/profile";
 
 // layout
 import Layout from "./components/Layout/Layout";
@@ -54,9 +55,12 @@ function App() {
         <Route path={ROUTES.PROPERTIES} element={<Properties />} />
         <Route path={ROUTES.DEALS} element={<Deals />} />
         <Route path={ROUTES.APPOINTMENTS} element={<Appointments />} />
-        <Route path={ROUTES.EMPLOYEES} element={<Employees />} />
+        <Route path={ROUTES.REPORTS} element={<Reports />} />
 
-        {/* ✅ THÊM PROFILE Ở ĐÂY */}
+        {/* 🔥 FIX QUAN TRỌNG */}
+        <Route path="/employees" element={<Employees />} />
+        <Route path="/employees/:id" element={<Employees />} />
+
         <Route path={ROUTES.PROFILE} element={<Profile />} />
       </Route>
 

@@ -1,198 +1,226 @@
-import Loading from "../common/Loading";
+import { useState } from "react";
+import {
+  getDealStageLabel,
+  getDealStatusLabel,
+} from "../../utils/dealConstants";
 
 function DealTable({
   data = [],
-  customers = [], // 🔥 thêm
+  customers = [],
   loading,
   onClose,
   onDelete,
   onEdit,
+  isAdmin, // ✅ thêm role
 }) {
-  // 🔥 map customerId → name
-  const getCustomerName = (id) => {
-    const c = customers.find((c) => c.id === id);
-    return c?.name || "N/A";
+  const [selectedProperty, setSelectedProperty] = useState(null);
+
+  const getCustomerName = (deal) => {
+    if (deal.customerName) return deal.customerName;
+
+    const c = Array.isArray(customers)
+      ? customers.find((c) => c.id === deal.customerId)
+      : null;
+
+    return c?.name || `Customer #${deal.customerId}`;
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-3 text-slate-600">Đang tải dữ liệu...</span>
-      </div>
-    );
-  }
+  const formatAmount = (amount) => {
+    if (!amount && amount !== 0) return "0 đ";
+    return Number(amount).toLocaleString() + " đ";
+  };
 
-  if (!data.length) {
-    return (
-      <div className="text-center py-12">
-        <svg
-          className="mx-auto h-12 w-12 text-slate-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-          />
-        </svg>
-        <p className="mt-4 text-slate-500">Không có giao dịch nào</p>
-      </div>
-    );
-  }
+  const formatDate = (date) => {
+    if (!date) return "-";
+    return new Date(date).toLocaleString("vi-VN");
+  };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full">
-        <thead className="bg-slate-50 border-b border-slate-200">
-          <tr>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-              Deal ID
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-              Property
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-              Price
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-              Customer
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-              Stage
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-              Status
-            </th>
-            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-              Actions
-            </th>
-          </tr>
-        </thead>
+    <>
+      {/* CONTAINER */}
+      <div
+        className="bg-white rounded-xl border border-slate-200 p-4"
+        style={{
+          minHeight: "420px",
+          maxHeight: "520px",
+          overflow: "hidden",
+        }}
+      >
+        {/* LOADING */}
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-3 text-slate-600">
+              Đang tải dữ liệu...
+            </span>
+          </div>
+        ) : !data.length ? (
+          /* EMPTY */
+          <div className="flex items-center justify-center h-full text-slate-500">
+            Không có giao dịch nào
+          </div>
+        ) : (
+          /* TABLE */
+          <div className="overflow-x-auto h-full">
+            <div className="max-h-full overflow-y-auto">
+              <table className="min-w-full">
+                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold">
+                      Deal ID
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold">
+                      Property
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold">
+                      Price
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold">
+                      Customer
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold">
+                      Created
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold">
+                      Closed
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold">
+                      Stage
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold">
+                      Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
 
-        <tbody className="divide-y divide-slate-200">
-          {data.map((d) => {
-            const isClosed =
-              d.status === "Won" || d.status === "Lost";
+                <tbody className="divide-y divide-slate-200">
+                  {data.map((d) => {
+                    const isClosed = d.status === 2 || d.status === 3;
 
-            return (
-              <tr
-                key={d.id}
-                className="hover:bg-slate-50 transition-colors"
+                    return (
+                      <tr key={d.id} className="hover:bg-slate-50">
+                        {/* ID */}
+                        <td className="px-6 py-4">#{d.id}</td>
+
+                        {/* PROPERTY */}
+                        <td className="px-6 py-4">
+                          <div className="font-semibold text-slate-900">
+                            {d.propertyTitle || d.title}
+                          </div>
+
+                          <div
+                            onClick={() => setSelectedProperty(d)}
+                            className="text-xs text-blue-500 cursor-pointer hover:underline"
+                          >
+                            Property ID: {d.propertyId || "-"}
+                          </div>
+                        </td>
+
+                        {/* PRICE */}
+                        <td className="px-6 py-4 font-bold text-blue-600">
+                          {formatAmount(d.amount)}
+                        </td>
+
+                        {/* CUSTOMER */}
+                        <td className="px-6 py-4">
+                          {getCustomerName(d)}
+                        </td>
+
+                        {/* CREATED */}
+                        <td className="px-6 py-4">
+                          {formatDate(d.createdDate)}
+                        </td>
+
+                        {/* CLOSED */}
+                        <td className="px-6 py-4">
+                          {formatDate(d.closedDate)}
+                        </td>
+
+                        {/* STAGE */}
+                        <td className="px-6 py-4">
+                          {getDealStageLabel(d.stage)}
+                        </td>
+
+                        {/* STATUS */}
+                        <td className="px-6 py-4">
+                          {getDealStatusLabel(d.status)}
+                        </td>
+
+                        {/* ACTIONS */}
+                        <td className="px-6 py-4 space-x-2">
+                          {!isAdmin && (
+                            <>
+                              {/* EDIT */}
+                              <button
+                                onClick={() => !isClosed && onEdit(d)}
+                                disabled={isClosed}
+                                className="px-3 py-1 bg-amber-50 text-amber-700 rounded-md hover:bg-amber-100 disabled:opacity-50"
+                              >
+                                Edit
+                              </button>
+
+                              {/* CLOSE */}
+                              {!isClosed && (
+                                <button
+                                  onClick={() => onClose(d)}
+                                  className="px-3 py-1 bg-green-50 text-green-700 rounded-md hover:bg-green-100"
+                                >
+                                  Close
+                                </button>
+                              )}
+
+                              {/* DELETE */}
+                              <button
+                                onClick={() => onDelete(d.id)}
+                                className="px-3 py-1 bg-red-50 text-red-700 rounded-md hover:bg-red-100"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL PROPERTY */}
+      {selectedProperty && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-md p-5 w-[360px]">
+            <h2 className="text-base font-semibold mb-3">
+              Property Detail
+            </h2>
+
+            <div className="space-y-1 text-sm text-slate-700">
+              <p><b>ID:</b> {selectedProperty.propertyId}</p>
+              <p><b>Title:</b> {selectedProperty.propertyTitle}</p>
+              <p><b>Price:</b> {formatAmount(selectedProperty.amount)}</p>
+              <p><b>Customer:</b> {getCustomerName(selectedProperty)}</p>
+              <p><b>Created:</b> {formatDate(selectedProperty.createdDate)}</p>
+              <p><b>Closed:</b> {formatDate(selectedProperty.closedDate)}</p>
+            </div>
+
+            <div className="mt-4">
+              <button
+                onClick={() => setSelectedProperty(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
               >
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                  #{d.id}
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
-                  {d.title}
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">
-                  {Number(d.amount).toLocaleString()} đ
-                </td>
-
-                {/* 🔥 FIX CHÍNH */}
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
-                  {getCustomerName(d.customerId)}
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                    {d.stage}
-                  </span>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                      d.status === "Won"
-                        ? "bg-green-100 text-green-800"
-                        : d.status === "Lost"
-                        ? "bg-red-100 text-red-800"
-                        : d.status === "InProgress"
-                        ? "bg-blue-100 text-blue-800"
-                        : d.status === "Cancelled"
-                        ? "bg-slate-100 text-slate-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {d.status}
-                  </span>
-                </td>
-
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                  <button
-                    onClick={() => onEdit(d)}
-                    className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
-                  >
-                    <svg
-                      className="w-4 h-4 mr-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
-                    Edit
-                  </button>
-
-                  {!isClosed && (
-                    <button
-                      onClick={() => onClose(d)}
-                      className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
-                    >
-                      <svg
-                        className="w-4 h-4 mr-1"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      Close
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => onDelete(d.id)}
-                    className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
-                  >
-                    <svg
-                      className="w-4 h-4 mr-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

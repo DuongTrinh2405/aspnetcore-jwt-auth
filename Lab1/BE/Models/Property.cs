@@ -29,8 +29,8 @@ namespace Lab1.Models
         [MaxLength(300)]
         public string Address { get; set; } = string.Empty;
 
-        // ✅ ẢNH (QUAN TRỌNG)
-        public string? ImageUrl { get; set; }
+        // ✅ ẢNH (QUAN TRỌNG) - Nhiều ảnh
+        public List<PropertyImage> Images { get; set; } = new();
 
         // ✅ ENUM
         [Required]
@@ -38,8 +38,6 @@ namespace Lab1.Models
 
         [Required]
         public PropertyStatus Status { get; set; } = PropertyStatus.Available;
-
-        public bool IsSold { get; set; } = false;
 
         // 🔥 Employee quản lý
         public int? EmployeeId { get; set; }

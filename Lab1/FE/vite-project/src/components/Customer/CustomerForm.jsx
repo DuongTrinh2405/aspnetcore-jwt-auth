@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CUSTOMER_STATUS_OPTIONS } from "../../utils/customerConstants";
+import { formStyles } from "../../styles/formStyles";
 
 function CustomerForm({ initialData, onSubmit, onClose }) {
   const [form, setForm] = useState({
@@ -67,7 +68,6 @@ function CustomerForm({ initialData, onSubmit, onClose }) {
         lastContactDate: form.lastContactDate,
       };
 
-      // ✅ CHỈ gửi status khi EDIT
       if (isEdit) {
         payload.status = form.status;
       }
@@ -82,114 +82,121 @@ function CustomerForm({ initialData, onSubmit, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="p-6">
-          <h3 className="text-xl font-semibold text-slate-800 mb-6">
-            {isEdit ? "Cập nhật khách hàng" : "Thêm khách hàng"}
-          </h3>
+    <div style={formStyles.overlay}>
+      <div style={formStyles.modal}>
+        {/* TITLE */}
+        <h3 style={formStyles.title}>
+          {isEdit ? "Cập nhật khách hàng" : "Thêm khách hàng"}
+        </h3>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* NAME */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Tên khách hàng *
-              </label>
-              <input
-                name="name"
-                placeholder="Nhập tên khách hàng"
-                value={form.name}
+        <p style={formStyles.subtitle}>
+          Nhập thông tin khách hàng
+        </p>
+
+        {/* FORM */}
+        <form onSubmit={handleSubmit} style={formStyles.form}>
+          {/* NAME */}
+          <div style={formStyles.formGroup}>
+            <label style={formStyles.label}>
+              Tên khách hàng *
+            </label>
+            <input
+              name="name"
+              placeholder="Nhập tên khách hàng"
+              value={form.name}
+              onChange={handleChange}
+              style={formStyles.input}
+            />
+          </div>
+
+          {/* EMAIL */}
+          <div style={formStyles.formGroup}>
+            <label style={formStyles.label}>Email</label>
+            <input
+              name="email"
+              type="email"
+              placeholder="Nhập email"
+              value={form.email}
+              onChange={handleChange}
+              style={formStyles.input}
+            />
+          </div>
+
+          {/* PHONE */}
+          <div style={formStyles.formGroup}>
+            <label style={formStyles.label}>
+              Số điện thoại *
+            </label>
+            <input
+              name="phone"
+              placeholder="Nhập số điện thoại"
+              value={form.phone}
+              onChange={handleChange}
+              style={formStyles.input}
+            />
+          </div>
+
+          {/* ADDRESS */}
+          <div style={formStyles.formGroup}>
+            <label style={formStyles.label}>Địa chỉ</label>
+            <input
+              name="address"
+              placeholder="Nhập địa chỉ"
+              value={form.address}
+              onChange={handleChange}
+              style={formStyles.input}
+            />
+          </div>
+
+          {/* STATUS */}
+          {isEdit && (
+            <div style={formStyles.formGroup}>
+              <label style={formStyles.label}>Trạng thái</label>
+              <select
+                name="status"
+                value={form.status}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-
-            {/* EMAIL */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Email
-              </label>
-              <input
-                name="email"
-                type="email"
-                placeholder="Nhập email"
-                value={form.email}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* PHONE */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Số điện thoại *
-              </label>
-              <input
-                name="phone"
-                placeholder="Nhập số điện thoại"
-                value={form.phone}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-
-            {/* ADDRESS */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Địa chỉ
-              </label>
-              <input
-                name="address"
-                placeholder="Nhập địa chỉ"
-                value={form.address}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* ✅ STATUS - CHỈ HIỆN KHI EDIT */}
-            {isEdit && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Trạng thái
-                </label>
-                <select
-                  name="status"
-                  value={form.status}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  {CUSTOMER_STATUS_OPTIONS.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* BUTTON */}
-            <div className="flex justify-end gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 bg-slate-100 rounded-lg hover:bg-slate-200"
+                style={formStyles.select}
               >
-                Huỷ
-              </button>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-400"
-              >
-                {loading ? "Đang lưu..." : isEdit ? "Cập nhật" : "Tạo mới"}
-              </button>
+                {CUSTOMER_STATUS_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
             </div>
-          </form>
-        </div>
+          )}
+
+          {/* ACTIONS */}
+          <div style={formStyles.actions}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                ...formStyles.btn,
+                ...formStyles.btnSecondary,
+              }}
+            >
+              Huỷ
+            </button>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                ...formStyles.btn,
+                ...formStyles.btnPrimary,
+                ...(loading ? formStyles.btnDisabled : {}),
+              }}
+            >
+              {loading
+                ? "Đang lưu..."
+                : isEdit
+                ? "Cập nhật"
+                : "Tạo mới"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ namespace Lab1.Models
         public DbSet<Employee> Employees { get; set; }
         public DbSet<Customer> Customers { get; set; }
         public DbSet<Property> Properties { get; set; }
+        public DbSet<PropertyImage> PropertyImages { get; set; }
         public DbSet<Interaction> Interactions { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
         public DbSet<Deal> Deals { get; set; }
@@ -91,6 +92,13 @@ namespace Lab1.Models
                 .WithMany()
                 .HasForeignKey(d => d.EmployeeId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // 🔥 PropertyImage relationship - cascade delete images when property is deleted
+            builder.Entity<PropertyImage>()
+                .HasOne(pi => pi.Property)
+                .WithMany(p => p.Images)
+                .HasForeignKey(pi => pi.PropertyId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

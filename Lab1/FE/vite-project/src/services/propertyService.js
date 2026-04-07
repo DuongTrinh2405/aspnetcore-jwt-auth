@@ -1,12 +1,90 @@
 import api from "./api";
 
 // ==============================
+// HELPER: clean params
+// ==============================
+const cleanParams = (params) => {
+  return Object.fromEntries(
+    Object.entries(params).filter(
+      ([_, v]) => v !== "" && v !== null && v !== undefined
+    )
+  );
+};
+
+// ==============================
+// 🔥 ENUM MAP (FIX CHÍNH)
+// ==============================
+const typeMap = {
+  Apartment: 0,
+  House: 1,
+};
+
+const statusMap = {
+  Available: 0,
+  Sold: 1,
+};
+
+// ==============================
+// 🔥 HELPER: CLEAN IMAGE URLS (QUAN TRỌNG NHẤT)
+// ==============================
+const normalizeImages = (imageUrls) => {
+  if (!imageUrls) return [];
+
+  // nếu là string
+  if (typeof imageUrls === "string") {
+    return imageUrls.split(",").filter((url) => url.trim());
+  }
+
+  // nếu là array
+  if (Array.isArray(imageUrls)) {
+    return imageUrls.map((img) => {
+      // nếu là string
+      if (typeof img === "string") return img;
+
+      // nếu là object { id, imageUrl }
+      if (img && typeof img === "object") {
+        return img.imageUrl;
+      }
+
+      return "";
+    }).filter(Boolean);
+  }
+
+  return [];
+};
+
+// ==============================
 // GET ALL
 // ==============================
-export const getProperties = async () => {
+export const getProperties = async (params = {}) => {
   try {
-    const res = await api.get("/Properties");
-    return res.data.data;
+    const queryParams = cleanParams({
+      search: params.search || "",
+      type:
+        typeof params.type === "string"
+          ? typeMap[params.type]
+          : params.type || "",
+      status:
+        typeof params.status === "string"
+          ? statusMap[params.status]
+          : params.status || "",
+      minPrice: params.minPrice ? Number(params.minPrice) : "",
+      maxPrice: params.maxPrice ? Number(params.maxPrice) : "",
+      page: params.page || 1,
+      pageSize: params.pageSize || 10,
+      sortBy: params.sortBy || "",
+      sortOrder: params.sortOrder || "",
+    });
+
+    const res = await api.get("/Properties", {
+      params: queryParams,
+    });
+
+    return {
+      data: res.data.data || [],
+      total: res.data.total || 0,
+      page: res.data.page || 1,
+    };
   } catch (error) {
     console.error("Get properties error:", error.response?.data);
     throw error.response?.data;
@@ -27,7 +105,7 @@ export const getPropertyById = async (id) => {
 };
 
 // ==============================
-// CREATE
+// CREATE (🔥 FIX IMAGE + ENUM)
 // ==============================
 export const createProperty = async (data) => {
   try {
@@ -37,10 +115,19 @@ export const createProperty = async (data) => {
       area: Number(data.area),
       address: data.address,
       description: data.description,
-      type: data.type,
-      status: data.status,
-      isSold: data.isSold ?? false,
-      imageUrl: data.imageUrl || "",
+
+      type:
+        typeof data.type === "string"
+          ? typeMap[data.type]
+          : data.type,
+
+      status:
+        typeof data.status === "string"
+          ? statusMap[data.status]
+          : data.status,
+
+      // 🔥 FIX QUAN TRỌNG
+      imageUrls: normalizeImages(data.imageUrls),
     };
 
     const res = await api.post("/Properties", payload);
@@ -52,7 +139,7 @@ export const createProperty = async (data) => {
 };
 
 // ==============================
-// UPDATE
+// UPDATE (🔥 FIX IMAGE + ENUM)
 // ==============================
 export const updateProperty = async (id, data) => {
   try {
@@ -62,10 +149,19 @@ export const updateProperty = async (id, data) => {
       area: Number(data.area),
       address: data.address,
       description: data.description,
-      type: data.type,
-      status: data.status,
-      isSold: data.isSold ?? false,
-      imageUrl: data.imageUrl || "",
+
+      type:
+        typeof data.type === "string"
+          ? typeMap[data.type]
+          : data.type,
+
+      status:
+        typeof data.status === "string"
+          ? statusMap[data.status]
+          : data.status,
+
+      // 🔥 FIX QUAN TRỌNG
+      imageUrls: normalizeImages(data.imageUrls),
     };
 
     await api.put(`/Properties/${id}`, payload);
@@ -79,42 +175,34 @@ export const updateProperty = async (id, data) => {
 // DELETE
 // ==============================
 export const deleteProperty = async (id) => {
-  await api.delete(`/Properties/${id}`);
+  try {
+    await api.delete(`/Properties/${id}`);
+  } catch (error) {
+    console.error("DELETE ERROR:", error.response?.data);
+    throw error.response?.data;
+  }
 };
 
 // ==============================
 // UPLOAD IMAGE
 // ==============================
-export const uploadPropertyImage = async (file) => {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const res = await api.post("/Upload", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
-
-  return res.data.url;
-};
-
-// ==============================
-// SEARCH
-// ==============================
-export const searchProperties = async (query, params = {}) => {
+export const uploadPropertyImages = async (files) => {
   try {
-    const res = await api.get("/Properties/search", {
-      params: { query, ...params }
+    const formData = new FormData();
+
+    files.forEach((file) => {
+      formData.append("files", file);
     });
-    return res.data.data;
+
+    const res = await api.post("/Upload", formData);
+
+    return res.data.urls;
   } catch (error) {
-    console.error("Search properties error:", error.response?.data);
-    throw error.response?.data || "Lỗi khi tìm kiếm bất động sản";
+    console.error("UPLOAD ERROR:", error.response?.data);
+    throw error.response?.data;
   }
 };
 
-// ==============================
-// EXPORT DEFAULT
 // ==============================
 export default {
   getProperties,
@@ -122,6 +210,5 @@ export default {
   createProperty,
   updateProperty,
   deleteProperty,
-  uploadPropertyImage,
-  searchProperties,
+  uploadPropertyImages,
 };

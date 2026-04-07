@@ -53,8 +53,9 @@ export const ROUTES = {
   PROPERTIES: "properties",
   DEALS: "deals",
   APPOINTMENTS: "appointments",
+  REPORTS: "reports",
   EMPLOYEES: "employees",
-   PROFILE: "/profile",
+  PROFILE: "/profile",
 };
 
 // ==============================

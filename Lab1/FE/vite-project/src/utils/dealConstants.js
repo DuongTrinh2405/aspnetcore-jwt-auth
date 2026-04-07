@@ -10,7 +10,7 @@ export const DEAL_STAGE = {
   LOST: 5,
 };
 
-// 👉 label hiển thị
+// label hiển thị
 export const DEAL_STAGE_LABEL = {
   0: "Prospect",
   1: "Qualified",
@@ -20,7 +20,7 @@ export const DEAL_STAGE_LABEL = {
   5: "Lost",
 };
 
-// 👉 options cho select
+// options cho select
 export const DEAL_STAGE_OPTIONS = [
   { value: 0, label: "Prospect" },
   { value: 1, label: "Qualified" },
@@ -41,7 +41,7 @@ export const DEAL_STATUS = {
   CANCELLED: 4,
 };
 
-// 👉 label hiển thị
+// label hiển thị
 export const DEAL_STATUS_LABEL = {
   0: "Open",
   1: "In Progress",
@@ -50,7 +50,7 @@ export const DEAL_STATUS_LABEL = {
   4: "Cancelled",
 };
 
-// 👉 options cho select
+// options cho select
 export const DEAL_STATUS_OPTIONS = [
   { value: 0, label: "Open" },
   { value: 1, label: "In Progress" },
@@ -63,39 +63,9 @@ export const DEAL_STATUS_OPTIONS = [
 // HELPER FUNCTIONS
 // ==============================
 
-// 👉 convert number -> label
+// number -> label (CHUẨN MỚI)
 export const getDealStageLabel = (stage) =>
-  DEAL_STAGE_LABEL[stage] || stage;
+  DEAL_STAGE_LABEL[stage] ?? "Unknown";
 
 export const getDealStatusLabel = (status) =>
-  DEAL_STATUS_LABEL[status] || status;
-
-// 👉 convert string (BE trả về) -> number
-export const parseDealStage = (stage) => {
-  if (typeof stage === "number") return stage;
-
-  const map = {
-    Prospect: 0,
-    Qualified: 1,
-    Proposal: 2,
-    Negotiation: 3,
-    Won: 4,
-    Lost: 5,
-  };
-
-  return map[stage] ?? 0;
-};
-
-export const parseDealStatus = (status) => {
-  if (typeof status === "number") return status;
-
-  const map = {
-    Open: 0,
-    InProgress: 1,
-    Won: 2,
-    Lost: 3,
-    Cancelled: 4,
-  };
-
-  return map[status] ?? 0;
-};
+  DEAL_STATUS_LABEL[status] ?? "Unknown";

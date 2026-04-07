@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import {
-  getDeals,
   createDeal,
   updateDeal,
   closeDeal,
@@ -9,7 +8,6 @@ import {
 } from "../services/dealService";
 
 import customerService from "../services/customerService";
-
 import DealForm from "../components/Deal/DealForm";
 import DealTable from "../components/Deal/DealTable";
 
@@ -17,116 +15,175 @@ function Deals() {
   const [deals, setDeals] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
+
+  // ✅ ROLE
+  const user = JSON.parse(localStorage.getItem("user"));
+  const isAdmin = user?.role === "Admin";
+
+  // 🔥 FILTER giống Property
+  const [filters, setFilters] = useState({
+    search: "",
+    stage: "",
+    status: "",
+  });
+
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(5);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const [sortOrder, setSortOrder] = useState("");
 
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState(null);
 
   // ==============================
-  // FETCH DEALS
+  // FETCH DATA
   // ==============================
-  const fetchDeals = useCallback(async (searchTerm = "") => {
+  const fetchData = useCallback(async (currentPage = 1) => {
     try {
       setLoading(true);
-      let data;
 
-      if (searchTerm.trim()) {
-        data = await searchDeals(searchTerm.trim());
-      } else {
-        data = await getDeals();
-      }
+      const res = await searchDeals(filters.search, {
+        stage: filters.stage || undefined,
+        status: filters.status || undefined,
+        page: currentPage,
+        pageSize,
+        sortBy: sortOrder ? "amount" : undefined,
+        sortOrder: sortOrder || undefined,
+      });
 
-      setDeals(Array.isArray(data) ? data : []);
+      const list = Array.isArray(res) ? res : res?.data || [];
+
+      setDeals(list);
+
+      setTotalPages(list.length < pageSize ? currentPage : currentPage + 1);
+      setPage(currentPage);
     } catch (err) {
       console.error(err);
-      alert(JSON.stringify(err));
+      alert("Lỗi khi tải deals");
     } finally {
       setLoading(false);
     }
+  }, [filters, sortOrder, pageSize]);
+
+  // ==============================
+  // LOAD
+  // ==============================
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      fetchData(page);
+    }, 300);
+
+    return () => clearTimeout(debounce);
+  }, [fetchData, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters, sortOrder]);
+
+  // ==============================
+  // CUSTOMERS
+  // ==============================
+  const fetchCustomers = async () => {
+    const data = await customerService.getCustomers();
+    setCustomers(Array.isArray(data) ? data : data?.data || []);
+  };
+
+  useEffect(() => {
+    fetchCustomers();
   }, []);
 
   // ==============================
-  // FETCH CUSTOMERS
-  // ==============================
-  const fetchCustomers = async () => {
-    try {
-      const data = await customerService.getCustomers();
-      setCustomers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // INIT LOAD
-  useEffect(() => {
-    fetchDeals();
-    fetchCustomers();
-  }, [fetchDeals]);
-
-  // SEARCH DEBOUNCE
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      fetchDeals(search);
-    }, 300);
-
-    return () => clearTimeout(debounceTimer);
-  }, [search, fetchDeals]);
-
-  // ==============================
-  // SUBMIT
+  // CRUD (ĐÃ CHẶN ADMIN)
   // ==============================
   const handleSubmit = async (payload) => {
-    try {
-      if (editing) {
-        await updateDeal(editing.id, payload);
-      } else {
-        await createDeal(payload);
-      }
-
-      setIsOpen(false);
-      setEditing(null);
-      await fetchDeals(search);
-    } catch (err) {
-      console.error("Deal submit error:", err);
-      alert("Lỗi khi lưu deal");
+    if (isAdmin) {
+      alert("Admin chỉ được xem!");
+      return;
     }
+
+    if (editing) {
+      await updateDeal(editing.id, payload);
+    } else {
+      await createDeal(payload);
+    }
+
+    setIsOpen(false);
+    setEditing(null);
+    fetchData(page);
   };
 
-  // ==============================
-  // ACTIONS
-  // ==============================
   const handleEdit = (deal) => {
-    setEditing(deal);
+    if (isAdmin) return;
+
+    setEditing({
+      ...deal,
+      stage: Number(deal.stage),
+      status: Number(deal.status),
+    });
     setIsOpen(true);
   };
 
   const handleClose = async (deal) => {
-    if (!window.confirm("Đóng deal này?")) return;
+    if (isAdmin) return;
 
-    try {
-      await closeDeal(deal.id); // ✅ fix chuẩn API
-      await fetchDeals(search);
-    } catch (err) {
-      alert(JSON.stringify(err));
-    }
+    if (!window.confirm("Đóng deal?")) return;
+    await closeDeal(deal);
+    fetchData(page);
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Xoá deal này?")) return;
+    if (isAdmin) return;
 
-    try {
-      await deleteDeal(id);
-      await fetchDeals(search);
-    } catch (err) {
-      alert(JSON.stringify(err));
-    }
+    if (!window.confirm("Xoá deal?")) return;
+    await deleteDeal(id);
+    fetchData(page);
   };
 
   // ==============================
-  // UI
+  // PAGINATION
   // ==============================
+  const renderPagination = () => {
+    const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+      .slice(Math.max(0, page - 3), page + 2);
+
+    return (
+      <div className="flex justify-center items-center gap-2 mt-6">
+        <button
+          disabled={page === 1}
+          onClick={() => setPage(page - 1)}
+          className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+        >
+          ←
+        </button>
+
+        {pages.map((p) => (
+          <button
+            key={p}
+            onClick={() => setPage(p)}
+            className={`px-3 py-1 rounded border ${
+              p === page
+                ? "bg-blue-600 text-white"
+                : "hover:bg-gray-100"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+
+        <button
+          disabled={page === totalPages}
+          onClick={() => setPage(page + 1)}
+          className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+        >
+          →
+        </button>
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="app-page space-y-6">
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
@@ -134,59 +191,90 @@ function Deals() {
           <p className="text-slate-600 mt-1">Quản lý giao dịch</p>
         </div>
 
-        <button
-          onClick={() => {
-            setEditing(null);
-            setIsOpen(true);
-          }}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+        {/* ❌ ADMIN KHÔNG THẤY */}
+        {!isAdmin && (
+          <button
+            onClick={() => {
+              setEditing(null);
+              setIsOpen(true);
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+          >
+            + Tạo deal
+          </button>
+        )}
+      </div>
+
+      {/* FILTER */}
+      <div className="bg-white rounded-xl shadow-sm border p-6 flex flex-wrap items-center gap-4">
+        <input
+          type="text"
+          placeholder="Tìm kiếm deal..."
+          value={filters.search}
+          onChange={(e) =>
+            setFilters({ ...filters, search: e.target.value })
+          }
+          className="flex-1 min-w-[250px] border px-3 py-2 rounded"
+        />
+
+        <select
+          value={filters.stage}
+          onChange={(e) =>
+            setFilters({ ...filters, stage: e.target.value })
+          }
+          className="border px-3 py-2 rounded w-[160px]"
         >
-          + Tạo deal
-        </button>
+          <option value="">All</option>
+          <option value="Prospect">Prospect</option>
+          <option value="Qualified">Qualified</option>
+          <option value="Proposal">Proposal</option>
+          <option value="Negotiation">Negotiation</option>
+          <option value="Won">Won</option>
+          <option value="Lost">Lost</option>
+        </select>
+
+        <select
+          value={filters.status}
+          onChange={(e) =>
+            setFilters({ ...filters, status: e.target.value })
+          }
+          className="border px-3 py-2 rounded w-[160px]"
+        >
+          <option value="">All</option>
+          <option value="Open">Open</option>
+          <option value="InProgress">InProgress</option>
+          <option value="Won">Won</option>
+          <option value="Lost">Lost</option>
+        </select>
+
+        <select
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value)}
+          className="border px-3 py-2 rounded w-[160px]"
+        >
+          <option value="">Default</option>
+          <option value="asc">Amount ↑</option>
+          <option value="desc">Amount ↓</option>
+        </select>
       </div>
 
-      {/* SEARCH (FIXED UI) */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div className="relative">
-          {/* ICON */}
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg
-              className="h-5 w-5 text-slate-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
+      {/* TABLE */}
+      <DealTable
+        data={deals}
+        customers={customers}
+        loading={loading}
+        onEdit={handleEdit}
+        onClose={handleClose}
+        onDelete={handleDelete}
+        isAdmin={isAdmin}
+      />
 
-          {/* INPUT */}
-          <input
-            type="text"
-            placeholder="Tìm kiếm deal..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="block w-full pl-10 pr-10 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-slate-900 placeholder-slate-400"
-          />
+      {renderPagination()}
 
-          {/* CLEAR BUTTON */}
-          {search && (
-            <button
-              onClick={() => setSearch("")}
-              className="absolute inset-y-0 right-2 text-slate-400 hover:text-slate-600"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      </div>
+      <p className="text-sm text-gray-500 text-center">
+        Trang {page} / {totalPages}
+      </p>
 
-      {/* FORM */}
       {isOpen && (
         <DealForm
           initialData={editing}
@@ -197,16 +285,6 @@ function Deals() {
           }}
         />
       )}
-
-      {/* TABLE */}
-      <DealTable
-        data={deals}
-        customers={customers}
-        loading={loading}
-        onEdit={handleEdit}
-        onClose={handleClose}
-        onDelete={handleDelete}
-      />
     </div>
   );
 }

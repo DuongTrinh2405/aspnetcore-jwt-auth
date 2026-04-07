@@ -4,12 +4,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Lab1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")]
     public class UserController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> userManager;
@@ -21,10 +21,11 @@ namespace Lab1.Controllers
             _context = context;
         }
 
-      
-
-        // ✅ GET USERS
+        // ==============================
+        // 🔥 ADMIN: GET ALL USERS
+        // ==============================
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUsers()
         {
             var users = await userManager.Users
@@ -43,8 +44,11 @@ namespace Lab1.Controllers
             });
         }
 
-        // ✅ DELETE USER
+        // ==============================
+        // 🔥 ADMIN: DELETE USER
+        // ==============================
         [HttpDelete("{userName}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(string userName)
         {
             var user = await userManager.FindByNameAsync(userName);
@@ -64,8 +68,11 @@ namespace Lab1.Controllers
             });
         }
 
-        // ✅ UPDATE USER
+        // ==============================
+        // 🔥 ADMIN: UPDATE USER
+        // ==============================
         [HttpPut("{userName}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateUser(string userName, [FromBody] RegisterUserDTO userDTO)
         {
             if (userDTO == null)
@@ -84,17 +91,73 @@ namespace Lab1.Controllers
             if (!result.Succeeded)
                 return BadRequest(new { success = false, errors = result.Errors });
 
-            // ✅ reset password đúng + check lỗi
-            var token = await userManager.GeneratePasswordResetTokenAsync(user);
-            var resetResult = await userManager.ResetPasswordAsync(user, token, userDTO.Password);
+            return Ok(new
+            {
+                success = true,
+                message = "User updated (admin)"
+            });
+        }
 
-            if (!resetResult.Succeeded)
-                return BadRequest(new { success = false, errors = resetResult.Errors });
+        // ==============================
+        // 👤 USER: GET MY PROFILE
+        // ==============================
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<IActionResult> GetMe()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (userId == null)
+                return Unauthorized();
+
+            var user = await userManager.FindByIdAsync(userId);
+
+            if (user == null)
+                return NotFound();
+
+            var roles = await userManager.GetRolesAsync(user);
+
+            return Ok(new
+            {
+                user.Id,
+                userName = user.UserName,
+                email = user.Email,
+                role = roles.FirstOrDefault()
+            });
+        }
+
+        // ==============================
+        // 👤 USER: UPDATE MY PROFILE
+        // ==============================
+        [HttpPut("me")]
+        [Authorize]
+        public async Task<IActionResult> UpdateMe([FromBody] UpdateProfileDTO dto)
+        {
+            if (dto == null)
+                return BadRequest("Payload is null");
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (userId == null)
+                return Unauthorized();
+
+            var user = await userManager.FindByIdAsync(userId);
+
+            if (user == null)
+                return NotFound();
+
+            user.UserName = dto.UserName;
+            user.Email = dto.Email;
+
+            var result = await userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+                return BadRequest(new { success = false, errors = result.Errors });
 
             return Ok(new
             {
                 success = true,
-                message = "User updated"
+                message = "Profile updated"
             });
         }
     }

@@ -1,44 +1,73 @@
 using Lab1.Models;
+using Lab1.DTO;
 
 namespace Lab1.Services.Interfaces
 {
     public interface IAppointmentOperations
     {
-        // ✅ FIX: thêm pagination
-        Task<IEnumerable<Appointment>> GetAllAsync(
+        // =========================
+        // GET ALL (PAGINATION)
+        // =========================
+        Task<PagedResult<Appointment>> GetAllAsync(
             string? userId,
             string? role,
             int page,
             int pageSize
         );
 
-        Task<Appointment?> GetByIdAsync(int id, string? userId, string? role);
-
-        Task<IEnumerable<Appointment>> GetByCustomerIdAsync(
-            int customerId,
+        // =========================
+        // GET BY ID
+        // =========================
+        Task<Appointment?> GetByIdAsync(
+            int id,
             string? userId,
             string? role
         );
 
-        Task<IEnumerable<Appointment>> GetByPropertyIdAsync(
-            int propertyId,
-            string? userId,
-            string? role
+        // =========================
+        // CREATE
+        // =========================
+        Task<Appointment> CreateAsync(
+            Appointment appointment,
+            string userId
         );
 
-        Task<Appointment> CreateAsync(Appointment appointment, string userId);
+        // =========================
+        // UPDATE
+        // =========================
+        Task<bool> UpdateAsync(
+            int id,
+            Appointment appointment,
+            string userId
+        );
 
-        Task<bool> UpdateAsync(int id, Appointment appointment, string userId);
+        // =========================
+        // DELETE
+        // =========================
+        Task<bool> DeleteAsync(
+            int id,
+            string userId,
+            string role
+        );
 
-        Task<bool> DeleteAsync(int id, string userId, string role);
-
-        // ✅ Đã đúng (bạn làm ok rồi)
-        Task<IEnumerable<Appointment>> SearchAsync(
-            string query,
+        // =========================
+        // SEARCH (PAGINATION)
+        // =========================
+        Task<PagedResult<Appointment>> SearchAsync(
+            string keyword,   // 🔥 đổi tên cho rõ nghĩa
             string? userId,
             string? role,
             int page,
             int pageSize
+        );
+
+        // =========================
+        // ADVANCED FILTER
+        // =========================
+        Task<PagedResult<Appointment>> FilterAsync(
+            CreateAppointmentDTO dto,
+            string? userId,
+            string? role
         );
     }
 }
