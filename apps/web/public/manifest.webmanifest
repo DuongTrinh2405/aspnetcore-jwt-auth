@@ -1,0 +1,32 @@
+{
+  "name": "Trung tâm dịch vụ Châu Ngọc Long",
+  "short_name": "CNL Service",
+  "description": "Đặt lịch, báo lỗi và theo dõi tiến độ dịch vụ kỹ thuật Châu Ngọc Long.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F6F9FC",
+  "theme_color": "#2563EB",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

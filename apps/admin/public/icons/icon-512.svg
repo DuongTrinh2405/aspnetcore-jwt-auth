@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="CNL Admin">
+  <rect width="512" height="512" rx="116" fill="#F8FAFC"/>
+  <rect x="28" y="28" width="456" height="456" rx="98" fill="#FFFFFF" stroke="#BFDBFE" stroke-width="6"/>
+  <path d="M303 92a170 170 0 1 0 0 328v-80a90 90 0 1 1 0-168V92Z" fill="#10B981"/>
+  <path d="M319 176h64v180h-64z" fill="#10B981"/>
+  <path d="M384 208h58v148h-58z" fill="#EF4444"/>
+  <path d="M390 154 443 202H337z" fill="#10B981"/>
+  <circle cx="234" cy="256" r="72" fill="#EF4444"/>
+  <circle cx="234" cy="256" r="42" fill="#FFFFFF"/>
+  <circle cx="234" cy="256" r="21" fill="#EF4444"/>
+  <path d="M234 164v-48" stroke="#10B981" stroke-width="28" stroke-linecap="round"/>
+  <path d="M112 402c82 48 204 48 288 0" fill="none" stroke="#06B6D4" stroke-width="16" stroke-linecap="round" opacity=".55"/>
+</svg>

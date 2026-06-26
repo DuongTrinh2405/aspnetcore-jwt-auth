@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="CNL Service">
+  <rect width="512" height="512" fill="#2563EB"/>
+  <circle cx="256" cy="256" r="232" fill="#F8FAFC"/>
+  <circle cx="256" cy="256" r="206" fill="#FFFFFF"/>
+  <path d="M304 112a152 152 0 1 0 0 288v-72a80 80 0 1 1 0-144v-72Z" fill="#10B981"/>
+  <path d="M318 185h58v158h-58z" fill="#10B981"/>
+  <path d="M377 214h52v129h-52z" fill="#EF4444"/>
+  <path d="M382 167 430 212H334z" fill="#10B981"/>
+  <circle cx="238" cy="260" r="65" fill="#EF4444"/>
+  <circle cx="238" cy="260" r="38" fill="#FFFFFF"/>
+  <circle cx="238" cy="260" r="19" fill="#EF4444"/>
+  <path d="M238 176v-43" stroke="#10B981" stroke-width="24" stroke-linecap="round"/>
+  <path d="M126 392c78 42 184 42 260 0" fill="none" stroke="#06B6D4" stroke-width="15" stroke-linecap="round" opacity=".6"/>
+</svg>

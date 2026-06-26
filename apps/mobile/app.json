@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "CNL Service",
+    "slug": "cnl-service",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "cnlservice",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cnl.service"
+    },
+    "android": {
+      "package": "com.cnl.service"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
